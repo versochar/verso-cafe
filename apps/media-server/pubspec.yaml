@@ -1,0 +1,11 @@
+name: sosyal_media_server
+description: "Sosyal kendi sunulan medya sunucusu — NIP-98 imzalı yükleme, sha256 adlı dağıtım"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  bip340: ^0.3.1
+  crypto: ^3.0.6

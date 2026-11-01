@@ -1,0 +1,35 @@
+# ÜRETİM relay yapılandırma örneği (strfry için ayrı dosya kullanılacak).
+# Bu dosya nostr-rs-relay içindir; Oracle VM'de TLS'i Caddy sonlandırır.
+
+[info]
+relay_url = "wss://relay.ornek.dpdns.org/"
+name = "sosyal"
+description = "Davetli sosyal ag relay'i"
+# Relay operatörünün npub'i (NIP-11)
+pubkey = "REPLACE_WITH_OPERATOR_NPUB_HEX"
+
+[database]
+engine = "sqlite"
+data_directory = "/var/lib/nostr-rs-relay/data"
+in_memory = false
+
+[network]
+address = "127.0.0.1"
+port = 7777
+
+[logging]
+level = "info"
+
+[limits]
+max_event_bytes = 131072
+max_ws_message_bytes = 131072
+max_ws_frame_bytes = 131072
+broadcast_buffer = 16384
+event_persist_buffer = 4096
+
+# Whitelist: yalnızca onaylı pubkey'ler yazabilir/okuyabilir.
+[authorization]
+pubkey_whitelist = [
+  # "abcdef...64hex",
+]
+nip42_auth = true

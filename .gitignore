@@ -1,0 +1,34 @@
+# --- Flutter / Dart ---
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# --- Android ---
+**/android/.gradle/
+**/android/local.properties
+**/android/app/*.jks
+**/android/app/*.keystore
+**/android/key.properties
+*.apk
+*.aab
+
+# --- Veri / secrets ---
+.env
+.env.*
+.data/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Editör / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# --- Loglar ---
+*.log
+logs/
