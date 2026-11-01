@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/accounts/account_service.dart';
 import '../../core/background/background_watch.dart';
 import '../../core/config/app_config.dart';
 import '../../core/identity/invite_qr.dart';
+import '../../core/identity/key_storage.dart';
 import '../../core/media/media_uploader.dart';
 import '../../core/nostr/event.dart';
 import '../../core/nostr/nip49.dart';
@@ -12,6 +14,7 @@ import '../../core/session/app_session.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets.dart';
+import '../announcements/announcements_sheet.dart';
 import '../feed/post_tile.dart';
 import '../identity/scan_page.dart';
 
@@ -513,6 +516,19 @@ class _SettingsSheet extends StatelessWidget {
             RowsGroup(
               label: 'Hesap',
               children: [
+                if (AccountService.instance.account case final acc?) ...[
+                  RowItem(
+                    icon: Icons.person_outline,
+                    title: acc.username,
+                    subtitle: 'Rol: ${acc.role.labelTR}',
+                  ),
+                  RowItem(
+                    icon: Icons.logout,
+                    title: 'Oturumu kapat',
+                    subtitle: 'Anahtar sunucuda parolanla duruyor',
+                    onTap: () => _signOut(context),
+                  ),
+                ],
                 RowItem(
                   icon: Icons.vpn_key_outlined,
                   title: 'Anahtarı yedekle',
@@ -532,6 +548,31 @@ class _SettingsSheet extends StatelessWidget {
                     );
                   },
                 ),
+              ],
+            ),
+            const SizedBox(height: Insets.lg),
+            RowsGroup(
+              label: 'Topluluk',
+              children: [
+                RowItem(
+                  icon: Icons.campaign_outlined,
+                  title: 'Duyurular',
+                  subtitle: 'Host ve mod duyuruları',
+                  onTap: () {
+                    Navigator.pop(context);
+                    showAnnouncements(context);
+                  },
+                ),
+                if (AccountService.instance.account?.isHost ?? false)
+                  RowItem(
+                    icon: Icons.shield_outlined,
+                    title: 'Yetki yönetimi',
+                    subtitle: 'Mod ata, hostluğu devret',
+                    onTap: () {
+                      Navigator.pop(context);
+                      showRoleAdmin(context);
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: Insets.lg),
@@ -583,6 +624,36 @@ class _SettingsSheet extends StatelessWidget {
       ),
       ),
     );
+  }
+
+  /// Firebase hesabıyla çıkış: anahtar cihazdan silinir (parolayla
+  /// sunucuda durduğu için kayıp değil) ve uygulama kapanır; açılışta
+  /// yeniden giriş istenir.
+  Future<void> _signOut(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceAlt,
+        title: const Text('Oturumu kapat'),
+        content: const Text(
+          'Anahtar bu cihazdan silinir; bir dahaki açılışta kullanıcı adı + '
+          'parolanla aynı hesaba ve anahtarlarına dönebilirsin.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Vazgeç')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Kapat')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AccountService.instance.signOut();
+    await KeyStorage().deleteKeys();
+    if (context.mounted) Navigator.pop(context); // ayarları kapat
+    SystemNavigator.pop(); // uygulamayı kapat (sonraki açılış: giriş)
   }
 
   void _showBackup(BuildContext context) {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../core/accounts/account_service.dart';
 import '../../core/config/app_config.dart';
 import '../../core/session/app_session.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets.dart';
+import '../announcements/announcements_sheet.dart';
 import 'compose_sheet.dart';
 import 'post_tile.dart';
 import 'user_sheet.dart';
@@ -78,6 +80,7 @@ class _FeedPageState extends State<FeedPage> {
                 ),
               ),
               const Divider(height: 1),
+              const _AnnouncementBanner(),
               Expanded(
                 child: feed.isEmpty
                     ? ListView(
@@ -119,6 +122,65 @@ class _FeedPageState extends State<FeedPage> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Akışın üstündeki duyuru şeridi: en son duyuruyu gösterir, dokununca
+/// listeyi açar. Firebase hesabı olmayan (yerel anahtar) oturumlarda ve
+/// duyuru yoksa görünmez.
+class _AnnouncementBanner extends StatefulWidget {
+  const _AnnouncementBanner();
+
+  @override
+  State<_AnnouncementBanner> createState() => _AnnouncementBannerState();
+}
+
+class _AnnouncementBannerState extends State<_AnnouncementBanner> {
+  /// Tek kez üretilir; akış yeniden kurulursa Firestore dinleyicisi
+  /// çoğalır ve emülatör akışı kısıtlar (RESOURCE_EXHAUSTED).
+  late final Stream<List<Announcement>> _stream =
+      AccountService.instance.signedIn
+          ? AnnouncementService.instance.watch(limit: 1)
+          : const Stream.empty();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Announcement>>(
+      stream: _stream,
+      builder: (context, snap) {
+        final items = snap.data;
+        if (items == null || items.isEmpty) return const SizedBox.shrink();
+        final a = items.first;
+        return InkWell(
+          onTap: () => showAnnouncements(context),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.line)),
+              color: AppColors.accentWash,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.campaign,
+                    size: 18, color: AppColors.accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    a.body.isEmpty ? a.title : '${a.title} — ${a.body}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13.5),
+                  ),
+                ),
+                const Icon(Icons.chevron_right,
+                    size: 18, color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
