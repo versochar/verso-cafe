@@ -31,4 +31,9 @@ class AppConfig {
     'MEDIA_URL',
     defaultValue: 'http://127.0.0.1:8080',
   );
+
+  /// Firebase Auth/Firestore emülatörünün adresi (ör. Android emülatöründen
+  /// ana makine: 10.0.2.2). Boşsa gerçek Firebase projesine bağlanılır.
+  static const String firebaseEmulatorHost =
+      String.fromEnvironment('FIREBASE_EMULATOR');
 }

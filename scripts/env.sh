@@ -10,7 +10,7 @@ export JAVA_HOME="$HOME/.local/opt/jdk21"
 export ANDROID_HOME="$HOME/Android/Sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 
-export PATH="$FLUTTER_ROOT/bin:$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/.npm-global/bin:$FLUTTER_ROOT/bin:$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$HOME/.cargo/bin:$PATH"
 
 # Gradle'ın doğru JDK'yı kullanması için
 export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"

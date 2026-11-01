@@ -1,18 +1,19 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'core/accounts/account_service.dart';
 import 'core/background/background_watch.dart';
 import 'core/config/app_config.dart';
-import 'core/session/app_session.dart';
-import 'features/shell/home_shell.dart';
+import 'features/shell/auth_gate.dart';
 import 'ui/theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Firebase: kullanıcı adı/parola girişi + roller + duyurular (ADR-013).
+  await Firebase.initializeApp();
+  await AccountService.configure();
   BackgroundWatch.init();
-  // Arayüz hemen çizilir; oturum (kimlik + relay) arka planda yüklenir.
-  // Böylece açılışta beyaz/boş ekran görünmez.
-  AppSession.instance.init();
-  BackgroundWatch.restore();
+  // Kimlik/oturum kararını AuthGate verir; arayüz hemen çizilir.
   runApp(const SosyalApp());
 }
 
@@ -27,7 +28,7 @@ class SosyalApp extends StatelessWidget {
       theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
-      home: const HomeShell(),
+      home: const AuthGate(),
     );
   }
 }
