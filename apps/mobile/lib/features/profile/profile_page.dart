@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/accounts/account_service.dart';
@@ -7,6 +10,7 @@ import '../../core/background/background_watch.dart';
 import '../../core/config/app_config.dart';
 import '../../core/identity/invite_qr.dart';
 import '../../core/identity/key_storage.dart';
+import '../../core/media/image_mime.dart';
 import '../../core/media/media_uploader.dart';
 import '../../core/nostr/event.dart';
 import '../../core/nostr/nip49.dart';
@@ -16,6 +20,7 @@ import '../../ui/theme.dart';
 import '../../ui/widgets.dart';
 import '../announcements/announcements_sheet.dart';
 import '../feed/post_tile.dart';
+import '../feed/user_sheet.dart';
 import '../identity/scan_page.dart';
 
 /// Profil: kimlik özeti, istatistikler, gönderi ızgarası ve hesap işlemleri.
@@ -41,6 +46,31 @@ class ProfilePage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.only(bottom: 96),
             children: [
+              // Banner image
+              if (me?.banner != null && me!.banner!.isNotEmpty)
+                ClipRRect(
+                  child: Image.network(
+                    me.banner!,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox(height: 160),
+                  ),
+                )
+              else
+                Container(
+                  height: 160,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.accent.withValues(alpha: 0.15),
+                        AppColors.surface,
+                      ],
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 12, 0),
                 child: Row(
@@ -71,11 +101,23 @@ class ProfilePage extends StatelessWidget {
                     ring: true,
                   ),
                   const Spacer(),
-                  _Stat(value: mine.length, label: 'Gönderi'),
+                  _TappableStat(
+                    value: mine.length,
+                    label: 'Gönderi',
+                    onTap: () {}, // no list for posts
+                  ),
                   const Spacer(),
-                  _Stat(value: session.followingCount(myKey), label: 'Takip'),
+                  _TappableStat(
+                    value: session.followingCount(myKey),
+                    label: 'Takip',
+                    onTap: () => _showFollowingList(context, myKey),
+                  ),
                   const Spacer(),
-                  _Stat(value: session.followerCount(myKey), label: 'Takipçi'),
+                  _TappableStat(
+                    value: session.followerCount(myKey),
+                    label: 'Takipçi',
+                    onTap: () => _showFollowerList(context, myKey),
+                  ),
                   const Spacer(),
                   const SizedBox(width: 24),
                 ],
@@ -188,6 +230,28 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  void _showFollowingList(BuildContext context, String pubkey) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FollowListSheet(
+        pubkey: pubkey,
+        mode: FollowListMode.following,
+      ),
+    );
+  }
+
+  void _showFollowerList(BuildContext context, String pubkey) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FollowListSheet(
+        pubkey: pubkey,
+        mode: FollowListMode.followers,
+      ),
+    );
+  }
+
   void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -278,25 +342,178 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
+class _TappableStat extends StatelessWidget {
+  const _TappableStat({
+    required this.value,
+    required this.label,
+    required this.onTap,
+  });
 
   final int value;
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text('$value',
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(label.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall),
-      ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          children: [
+            Text('$value',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text(label.toUpperCase(),
+                style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum FollowListMode { following, followers }
+
+class _FollowListSheet extends StatefulWidget {
+  const _FollowListSheet({required this.pubkey, required this.mode});
+
+  final String pubkey;
+  final FollowListMode mode;
+
+  @override
+  State<_FollowListSheet> createState() => _FollowListSheetState();
+}
+
+class _FollowListSheetState extends State<_FollowListSheet> {
+  late final Set<String> _list;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadList();
+  }
+
+  Future<void> _loadList() async {
+    final session = AppSession.instance;
+    final following = session.contacts[widget.pubkey] ?? <String>{};
+    final followers = <String>{};
+    for (final entry in session.contacts.entries) {
+      if (entry.value.contains(widget.pubkey.toLowerCase())) {
+        followers.add(entry.key);
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _list = widget.mode == FollowListMode.following ? following : followers;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = AppSession.instance;
+    final title = widget.mode == FollowListMode.following ? 'Takip edilenler' : 'Takipçiler';
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.lineStrong, borderRadius: Radii.pill),
+                ),
+              ),
+              const SizedBox(height: Insets.lg),
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: Insets.lg),
+              if (_loading)
+                const Center(
+                    child: CircularProgressIndicator())
+              else if (_list.isEmpty)
+                const EmptyState(
+                  icon: Icons.people_outline,
+                  title: 'Liste boş',
+                  message: 'Henüz kimse yok.',
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: _list.length,
+                    itemBuilder: (context, i) {
+                      final pk = _list.elementAt(i);
+                      final profile = session.profiles[pk];
+                      final isMe = pk == session.keys?.publicKeyHex;
+                      return ListTile(
+                        leading: Avatar(
+                          seed: pk,
+                          label: profile?.displayName,
+                          imageUrl: profile?.picture,
+                          size: 40,
+                        ),
+                        title: Text(
+                            profile?.displayName ?? '${pk.substring(0, 8)}…'),
+                        subtitle: isMe
+                            ? const Text('Sen')
+                            : null,
+                        trailing: !isMe
+                            ? FilledButton(
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(0, 36),
+                                  backgroundColor:
+                                      session.isFollowing(pk)
+                                          ? AppColors.surfaceAlt
+                                          : null,
+                                  foregroundColor:
+                                      session.isFollowing(pk)
+                                          ? AppColors.text
+                                          : null,
+                                  side: session.isFollowing(pk)
+                                      ? const BorderSide(color: AppColors.lineStrong)
+                                      : null,
+                                ),
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  final ok = await session.followPerson(pk);
+                                  messenger.showSnackBar(SnackBar(
+                                    content: Text(ok
+                                        ? (session.isFollowing(pk)
+                                            ? 'Takipten çıkarılamadı'
+                                            : 'Takip ediliyor')
+                                        : 'İşlem gönderilemedi'),
+                                  ));
+                                },
+                                child: Text(session.isFollowing(pk)
+                                    ? 'Takip ediliyor'
+                                    : 'Takip et'),
+                              )
+                            : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          showUserSheet(context, pk);
+                        },
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -398,6 +615,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   late final TextEditingController _about;
   bool _saving = false;
 
+  Uint8List? _pictureBytes;
+  String? _pictureMime;
+  Uint8List? _bannerBytes;
+  String? _bannerMime;
+  String? _pictureUrl;
+  String? _bannerUrl;
+
   @override
   void initState() {
     super.initState();
@@ -405,6 +629,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     final me = session.profiles[session.keys?.publicKeyHex];
     _name = TextEditingController(text: me?.name ?? '');
     _about = TextEditingController(text: me?.about ?? '');
+    _pictureUrl = me?.picture;
+    _bannerUrl = me?.banner;
   }
 
   @override
@@ -414,8 +640,43 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     super.dispose();
   }
 
+  Future<void> _pickPicture() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 82,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _pictureBytes = bytes;
+      _pictureMime = detectImageMime(bytes);
+    });
+  }
+
+  Future<void> _pickBanner() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2048,
+      maxHeight: 1024,
+      imageQuality: 82,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _bannerBytes = bytes;
+      _bannerMime = detectImageMime(bytes);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final session = AppSession.instance;
+    final me = session.profiles[session.keys?.publicKeyHex];
+
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -441,6 +702,78 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
           const SizedBox(height: 4),
           Text('Bu bilgiler relay\'e `kind:0` olarak yayınlanır.',
               style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: Insets.lg),
+          // Profile picture
+          Center(
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppColors.surface,
+                  backgroundImage: _pictureBytes != null
+                      ? MemoryImage(_pictureBytes!)
+                      : (_pictureUrl != null && _pictureUrl!.isNotEmpty
+                          ? NetworkImage(_pictureUrl!)
+                          : null) as ImageProvider?,
+                  child: _pictureBytes == null &&
+                          (_pictureUrl == null || _pictureUrl!.isEmpty)
+                      ? Text(
+                          (me?.name?.isNotEmpty ?? false)
+                              ? me!.name!.trim().characters.first.toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: Avatar.colorFor(session.keys!.publicKeyHex),
+                          ),
+                        )
+                      : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _saving ? null : _pickPicture,
+                    icon: const Icon(Icons.camera_alt, size: 16),
+                    tooltip: 'Profil fotoğrafı değiştir',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Insets.md),
+          // Banner image
+          if (_bannerBytes != null || (_bannerUrl != null && _bannerUrl!.isNotEmpty))
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: Radii.card,
+                  child: Image.memory(
+                    _bannerBytes!,
+                    height: 120,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _saving ? null : () => setState(() => _bannerBytes = null),
+                    icon: const Icon(Icons.close, size: 16),
+                    tooltip: 'Banner kaldır',
+                  ),
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _pickBanner,
+              icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+              label: const Text('Banner ekle'),
+            ),
           const SizedBox(height: Insets.lg),
           TextField(
             controller: _name,
@@ -473,13 +806,60 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final ok = await AppSession.instance.publishProfile(
+    final messenger = ScaffoldMessenger.of(context);
+    final session = AppSession.instance;
+    final keys = session.keys;
+    if (keys == null) {
+      setState(() => _saving = false);
+      messenger.showSnackBar(const SnackBar(content: Text('Anahtar yok')));
+      return;
+    }
+
+    String? pictureUrl = _pictureUrl;
+    String? bannerUrl = _bannerUrl;
+
+    // Upload profile picture if changed
+    if (_pictureBytes != null) {
+      try {
+        final ref = await MediaUploader(AppConfig.mediaUrl).upload(
+          bytes: _pictureBytes!,
+          mime: _pictureMime!,
+          keys: keys,
+        );
+        pictureUrl = ref.url;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        messenger.showSnackBar(SnackBar(content: Text('Profil fotoğrafı yüklenemedi: $e')));
+        return;
+      }
+    }
+
+    // Upload banner if changed
+    if (_bannerBytes != null) {
+      try {
+        final ref = await MediaUploader(AppConfig.mediaUrl).upload(
+          bytes: _bannerBytes!,
+          mime: _bannerMime!,
+          keys: keys,
+        );
+        bannerUrl = ref.url;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        messenger.showSnackBar(SnackBar(content: Text('Banner yüklenemedi: $e')));
+        return;
+      }
+    }
+
+    final ok = await session.publishProfile(
       name: _name.text,
       about: _about.text,
+      picture: pictureUrl,
+      banner: bannerUrl,
     );
     if (!mounted) return;
     setState(() => _saving = false);
-    final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
     messenger.showSnackBar(SnackBar(
       content: Text(ok ? 'Profil güncellendi' : 'Profil güncellenemedi'),

@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
 import '../config/app_config.dart';
 import '../identity/key_storage.dart';
+import '../media/media_uploader.dart';
 import '../nostr/event.dart';
 import '../nostr/keys.dart';
 import '../nostr/nip17_nip44.dart';
@@ -18,12 +20,14 @@ class ProfileView {
     this.name,
     this.about,
     this.picture,
+    this.banner,
   });
 
   final String pubkey;
   final String? name;
   final String? about;
   final String? picture;
+  final String? banner;
 
   String get displayName {
     final n = name?.trim();
@@ -35,6 +39,7 @@ class ProfileView {
     var name = event.pubkey;
     String? about;
     String? picture;
+    String? banner;
     try {
       final data = jsonDecode(event.content);
       if (data is Map) {
@@ -42,6 +47,7 @@ class ProfileView {
         if (n is String && n.trim().isNotEmpty) name = n.trim();
         if (data['about'] is String) about = (data['about'] as String).trim();
         if (data['picture'] is String) picture = (data['picture'] as String).trim();
+        if (data['banner'] is String) banner = (data['banner'] as String).trim();
       }
     } catch (_) {
       // Bozuk JSON: pubkey ile devam et.
@@ -51,6 +57,7 @@ class ProfileView {
       name: name,
       about: about,
       picture: picture,
+      banner: banner,
     );
   }
 }
@@ -148,6 +155,9 @@ class AppSession extends ChangeNotifier {
 
   /// pubkey → son görülen `kind:3` zamanı; daha yenisi gelirse liste değişir.
   final Map<String, int> _contactsAt = {};
+
+  /// Kullanılabilir takip listeleri (diğer sayfalardan erişim için).
+  Map<String, Set<String>> get contacts => _contacts;
 
   /// Son hata/uyarı mesajı (arayüzde gösterilir).
   String? lastNotice;
@@ -571,13 +581,24 @@ class AppSession extends ChangeNotifier {
     return publish(event);
   }
 
-  /// `kind:0` profil.
-  Future<bool> publishProfile({required String name, required String about}) async {
+  /// `kind:0` profil (name, about, picture, banner).
+  Future<bool> publishProfile({
+    required String name,
+    required String about,
+    String? picture,
+    String? banner,
+  }) async {
     final k = _k;
     if (k == null) return false;
+    final data = <String, String>{
+      'name': name.trim(),
+      'about': about.trim(),
+    };
+    if (picture != null && picture.isNotEmpty) data['picture'] = picture;
+    if (banner != null && banner.isNotEmpty) data['banner'] = banner;
     final event = NostrEvent.create(
       kind: EventKind.profile,
-      content: jsonEncode({'name': name.trim(), 'about': about.trim()}),
+      content: jsonEncode(data),
       keys: k,
     );
     return publish(event);
@@ -664,13 +685,57 @@ class AppSession extends ChangeNotifier {
     return ok;
   }
 
-  /// `kind:1059` gift wrap — alıcıya şifreli mesaj.
-  Future<bool> sendDm(String recipientPubkey, String text) async {
+  /// `kind:1059` gift wrap — alıcıya şifreli mesaj (metin + medya opsiyonel).
+  Future<bool> sendDm(String recipientPubkey, String text,
+      {Uint8List? mediaBytes,
+      String? mediaMime,
+      MediaType mediaType = MediaType.image,
+      bool viewOnce = false}) async {
     final k = _k;
-    if (k == null || text.trim().isEmpty) return false;
+    if (k == null || (text.trim().isEmpty && mediaBytes == null)) return false;
+
+    String content = text.trim();
+    String? mediaUrl;
+    String? mediaSha256;
+    String? mediaDim;
+    int? mediaDuration;
+
+    // Upload media if present
+    if (mediaBytes != null && mediaMime != null) {
+      try {
+        final ref = await MediaUploader(AppConfig.mediaUrl).upload(
+          bytes: mediaBytes,
+          mime: mediaMime,
+          keys: k,
+          type: mediaType,
+        );
+        mediaUrl = ref.url;
+        mediaSha256 = ref.sha256;
+        mediaDim = ref.dim;
+        mediaDuration = ref.duration;
+      } catch (_) {
+        // If upload fails, send text only
+      }
+    }
+
+    // Build the inner message content (JSON for structured data)
+    final innerData = <String, dynamic>{
+      if (content.isNotEmpty) 'text': content,
+      if (mediaUrl != null) 'media': {
+        'url': mediaUrl,
+        'mime': mediaMime,
+        'sha256': mediaSha256,
+        if (mediaDim != null) 'dim': mediaDim,
+        if (mediaDuration != null) 'duration': mediaDuration,
+        'type': mediaType == MediaType.video ? 'video' : 'image',
+        'viewOnce': viewOnce,
+      },
+    };
+
+    final innerContent = jsonEncode(innerData);
     final event = NostrEvent.create(
       kind: EventKind.giftWrap,
-      content: encryptMessage(text.trim(), k.privateKeyHex, recipientPubkey),
+      content: encryptMessage(innerContent, k.privateKeyHex, recipientPubkey),
       keys: k,
       tags: [
         ['p', recipientPubkey],

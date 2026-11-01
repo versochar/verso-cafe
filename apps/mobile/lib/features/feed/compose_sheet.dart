@@ -30,8 +30,10 @@ class _ComposeSheetState extends State<ComposeSheet> {
   final _controller = TextEditingController();
   bool _sending = false;
 
-  Uint8List? _imageBytes;
-  String _imageMime = 'image/jpeg';
+  Uint8List? _mediaBytes;
+  String _mediaMime = 'image/jpeg';
+  MediaType _mediaType = MediaType.image;
+  int? _videoDuration;
 
   @override
   void initState() {
@@ -56,8 +58,36 @@ class _ComposeSheetState extends State<ComposeSheet> {
     final bytes = await file.readAsBytes();
     if (!mounted) return;
     setState(() {
-      _imageBytes = bytes;
-      _imageMime = detectImageMime(bytes);
+      _mediaBytes = bytes;
+      _mediaMime = detectImageMime(bytes);
+      _mediaType = MediaType.image;
+      _videoDuration = null;
+    });
+  }
+
+  Future<void> _pickVideo() async {
+    final file = await ImagePicker().pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(minutes: 5),
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    // Video duration detection would need video_player or similar
+    // For now, we'll set a placeholder
+    setState(() {
+      _mediaBytes = bytes;
+      _mediaMime = 'video/mp4';
+      _mediaType = MediaType.video;
+      _videoDuration = 0; // unknown duration
+    });
+  }
+
+  void _removeMedia() {
+    setState(() {
+      _mediaBytes = null;
+      _mediaType = MediaType.image;
+      _videoDuration = null;
     });
   }
 
@@ -129,30 +159,45 @@ class _ComposeSheetState extends State<ComposeSheet> {
               contentPadding: EdgeInsets.zero,
             ),
           ),
-          if (_imageBytes != null) ...[
+          if (_mediaBytes != null) ...[
             const SizedBox(height: Insets.sm),
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: Radii.card,
-                  child: Image.memory(
-                    _imageBytes!,
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  child: _mediaType == MediaType.video
+                      ? Container(
+                          height: 160,
+                          width: double.infinity,
+                          color: AppColors.surface,
+                          child: const Center(
+                            child: Icon(Icons.videocam,
+                                size: 48, color: AppColors.textMuted),
+                          ),
+                        )
+                      : Image.memory(
+                          _mediaBytes!,
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
                 ),
                 Positioned(
                   top: 6,
                   right: 6,
                   child: IconButton.filledTonal(
                     visualDensity: VisualDensity.compact,
-                    onPressed: _sending
-                        ? null
-                        : () => setState(() => _imageBytes = null),
+                    onPressed: _sending ? null : _removeMedia,
                     icon: const Icon(Icons.close, size: 16),
                   ),
                 ),
+                if (_mediaType == MediaType.video)
+                  const Positioned.fill(
+                    child: Center(
+                      child: Icon(Icons.play_circle_fill,
+                          size: 48, color: Colors.white),
+                    ),
+                  ),
               ],
             ),
           ],
@@ -160,21 +205,48 @@ class _ComposeSheetState extends State<ComposeSheet> {
           const SizedBox(height: Insets.md),
           Row(
             children: [
-              IconButton(
-                onPressed: _sending ? null : _pickImage,
-                tooltip: 'Fotoğraf ekle',
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'image') _pickImage();
+                  if (value == 'video') _pickVideo();
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'image',
+                    child: Row(
+                      children: [
+                        Icon(Icons.add_photo_alternate_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Fotoğraf'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'video',
+                    child: Row(
+                      children: [
+                        Icon(Icons.videocam_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Video'),
+                      ],
+                    ),
+                  ),
+                ],
                 icon: Icon(
-                  _imageBytes == null
+                  _mediaBytes == null
                       ? Icons.add_photo_alternate_outlined
-                      : Icons.image_outlined,
+                      : (_mediaType == MediaType.video
+                          ? Icons.videocam_outlined
+                          : Icons.image_outlined),
                   color: AppColors.accent,
                 ),
+                tooltip: 'Medya ekle',
               ),
               ConnectionBadge(connected: AppSession.instance.connected),
               const Spacer(),
               FilledButton(
                 onPressed:
-                    (_sending || (text.isEmpty && _imageBytes == null) ||
+                    (_sending || (text.isEmpty && _mediaBytes == null) ||
                             length > 280)
                         ? null
                         : _send,
@@ -200,9 +272,9 @@ class _ComposeSheetState extends State<ComposeSheet> {
     final messenger = ScaffoldMessenger.of(context);
     final session = AppSession.instance;
 
-    // Fotoğraf varsa önce medya sunucusuna yükle (NIP-98 imzalı).
+    // Medya varsa önce medya sunucusuna yükle (NIP-98 imzalı).
     List<List<String>> tags = const [];
-    final bytes = _imageBytes;
+    final bytes = _mediaBytes;
     if (bytes != null) {
       final keys = session.keys;
       if (keys == null) {
@@ -213,15 +285,17 @@ class _ComposeSheetState extends State<ComposeSheet> {
       try {
         final ref = await MediaUploader(AppConfig.mediaUrl).upload(
           bytes: bytes,
-          mime: _imageMime,
+          mime: _mediaMime,
           keys: keys,
+          type: _mediaType,
+          duration: _videoDuration,
         );
         tags = [ref.toImetaTag()];
       } on MediaUploadException catch (e) {
         if (!mounted) return;
         setState(() => _sending = false);
         messenger.showSnackBar(
-          SnackBar(content: Text('Fotoğraf yüklenemedi — ${e.message}')),
+          SnackBar(content: Text('Medya yüklenemedi — ${e.message}')),
         );
         return;
       } catch (e) {

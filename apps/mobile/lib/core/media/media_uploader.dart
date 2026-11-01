@@ -6,6 +6,12 @@ import '../nostr/event.dart';
 import '../nostr/keys.dart';
 import '../nostr/nip98.dart';
 
+/// Supported media types.
+enum MediaType {
+  image,
+  video,
+}
+
 /// Bir yüklenmiş medya dosyasının gönderiye gömülen bilgisi (NIP-92 imeta).
 class MediaRef {
   const MediaRef({
@@ -13,23 +19,31 @@ class MediaRef {
     required this.sha256,
     required this.mime,
     this.dim,
+    this.type = MediaType.image,
+    this.duration,
   });
 
   final String url;
   final String sha256;
   final String mime;
-
-  /// "GENISLIKxYUKSEKLIK" ya da null.
   final String? dim;
+  final MediaType type;
+  final int? duration; // video duration in seconds
 
   /// Gönderi olayına gömülecek `imeta` etiketi.
-  List<String> toImetaTag() => [
-        'imeta',
-        'url', url,
-        'm', mime,
-        'x', sha256,
-        if (dim != null) ...['dim', dim!],
-      ];
+  List<String> toImetaTag() {
+    final tag = <String>[
+      'imeta',
+      'url', url,
+      'm', mime,
+      'x', sha256,
+    ];
+    if (dim != null) tag.addAll(['dim', dim!]);
+    if (type == MediaType.video && duration != null) {
+      tag.addAll(['duration', duration.toString()]);
+    }
+    return tag;
+  }
 
   /// imeta (ya da eski `media`/`thumb` alışkanlıkları) etiketlerinden ilk
   /// görüntü adresini çözer; yoksa null.
@@ -59,6 +73,8 @@ class MediaUploader {
     required String mime,
     required KeyPair keys,
     String? dim,
+    MediaType type = MediaType.image,
+    int? duration,
   }) async {
     final url = '$baseUrl/upload';
     final client = HttpClient()
@@ -73,7 +89,7 @@ class MediaUploader {
       );
       request.add(bytes);
       final response =
-          await request.close().timeout(const Duration(seconds: 30));
+          await request.close().timeout(const Duration(seconds: 60));
       final body = await utf8.decoder.bind(response).join();
       if (response.statusCode != 200) {
         var message = body;
@@ -90,6 +106,8 @@ class MediaUploader {
         sha256: json['sha256'] as String,
         mime: mime,
         dim: dim,
+        type: type,
+        duration: duration,
       );
     } finally {
       client.close(force: true);

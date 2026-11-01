@@ -1,14 +1,14 @@
 {
-  "version": "0.3.0",
-  "versionCode": 2004,
-  "notes": "Hesap sunucusu ev bilgisayarında (Firebase kaldırıldı), hikâye özelliği, 24 saat TTL, görüldü takibi; şehirler arası erişim korundu.",
+  "version": "1.0.0",
+  "versionCode": 2005,
+  "notes": "Profil fotoğrafı/banner, başkalarının profili görüntüleme, gönderi ve DM'de video/foto paylaşım, DM fotoğraflarda tek görüntüleme, takipçi/takip listesi",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v0.3.0/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v0.3.0/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.0/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.0/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "97e9b70e8676b02c118ee199c0dc92c8edc3514c1287ae0b2ef60fb207e53395",
-    "armeabi-v7a": "918717719162c0c36b99d5d186da28b336e1a0b5f5470674a569a36addb1c2c7"
+    "arm64-v8a": "a95b08ef956635a15af7a882a1ef2b596838f127a2b041a0b078793ea72123f2",
+    "armeabi-v7a": "1e9248fce37ad309999d99f68c0597bd98ef8596a0b7346f8d991634cebb79c4"
   }
 }
