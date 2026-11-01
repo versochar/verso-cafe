@@ -32,16 +32,23 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _decide() async {
+    var firebaseSignedIn = false;
     try {
       await AccountService.instance.restore();
+      firebaseSignedIn = AccountService.instance.signedIn;
     } catch (_) {
-      // Firebase erişilemezse (çevrimdışı vb.) yerel anahtar yeter.
+      // Firebase yok/erişilemez (yer tutucu yapılandırma ya da çevrimdışı):
+      // yerel anahtar yeter, uygulama açılmaya devam eder.
     }
     final keys = await KeyStorage().loadKeys();
     if (keys == null) {
-      if (AccountService.instance.signedIn) {
+      if (firebaseSignedIn) {
         // Oturum var ama anahtar cihazda yok: parola gerekir → temiz gir.
-        await AccountService.instance.signOut();
+        try {
+          await AccountService.instance.signOut();
+        } catch (_) {
+          // Firebase'e ulaşılamıyorsa yerel durum zaten anahtarsız.
+        }
       }
       if (mounted) setState(() => _phase = _Phase.signedOut);
       return;

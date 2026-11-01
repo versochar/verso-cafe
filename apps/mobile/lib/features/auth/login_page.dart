@@ -71,7 +71,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     } catch (e) {
       setState(() {
         _busy = false;
-        _error = 'Beklenmeyen hata: $e';
+        _error = accountErrorText(e);
       });
     }
   }

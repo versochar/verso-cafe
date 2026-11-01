@@ -74,13 +74,23 @@ class AccountService {
   AccountService._();
   static final AccountService instance = AccountService._();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  // Firebase erişimi tembel: yapılandırılmamışsa (yer tutucu
+  // google-services.json) singleton oluşurken çökmek yerine çağrı anında
+  // hata verir; çağıranlar bunu yakalar ve yerel anahtarla devam eder.
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   Account? _account;
   Account? get account => _account;
-  User? get authUser => _auth.currentUser;
-  bool get signedIn => _auth.currentUser != null;
+  User? get authUser {
+    try {
+      return _auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool get signedIn => authUser != null;
 
   /// Ana isola açılışında bir kez; emülatör ayarlarını uygular.
   static Future<void> configure() async {
@@ -178,7 +188,11 @@ class AccountService {
 
   Future<void> signOut() async {
     _account = null;
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (_) {
+      // Firebase yok/erişilemez: yerel anahtar silinerek oturum yine kapanır.
+    }
   }
 
   // ------------------------------------------------------ yönetim (host)
@@ -246,6 +260,23 @@ class AccountService {
           'Firebase konsolunda E-posta/Parola girişi açık değil.',
         _ => 'Firebase hatası: ${e.code}',
       };
+}
+
+/// Giriş/kayıt hatalarını kullanıcıya anlaşılır metne çevirir.
+///
+/// Firebase hiç yapılandırılmamışsa (yer tutucu `google-services.json`)
+/// fırlatılan istisna teknik metin taşır; kullanıcıya yol gösterilir.
+String accountErrorText(Object error) {
+  if (error is AccountException) return error.message;
+  final text = error.toString();
+  if (text.contains('No Firebase App') || text.contains('FirebaseApp')) {
+    return 'Hesaplar şu an kullanılamıyor (sunucu ayarlanmamış). '
+        'Alttaki "Yerel anahtarla devam et" ile kullanabilirsin.';
+  }
+  if (error is FirebaseException) {
+    return 'Firebase hatası: ${error.code}';
+  }
+  return 'Beklenmeyen hata: $error';
 }
 
 // ------------------------------------------------------------------ duyurular
