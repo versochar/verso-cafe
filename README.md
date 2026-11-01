@@ -18,7 +18,7 @@ posta kutusu görevi görür.
 | 4 | Akış, beğeni, yorum, engelleme | ✅ tamamlandı (engelleme + repost dahil) |
 | 5 | Birebir mesajlaşma (NIP-17) | ✅ tamamlandı (gerçek NIP-44) |
 | 6 | Push bildirim | ⏸️ ertelendi (yerine bkz. arka plan bağlantısı) |
-| 7 | Üretim, dağıtım, sürüm | 🟡 [v0.1.1 GitHub Release'te](https://github.com/versochar/verso-cafe/releases/tag/v0.1.1); v0.2.0 hazır (uygulama içi güncelleme doğrulandı) |
+| 7 | Üretim, dağıtım, sürüm | ✅ [v0.2.0 GitHub Release'te](https://github.com/versochar/verso-cafe/releases/tag/v0.2.0) (şehirler arası relay + otomatik güncelleme) |
 | — | Arayüz modernizasyonu | ✅ tamamlandı (Instagram benzeri düzen dahil) |
 | — | Bildirim merkezi (zil + rozet) | ✅ tamamlandı |
 | — | Arka plan bağlantısı | ✅ tamamlandı (ön plan servisi + Android bildirimi) |
@@ -26,6 +26,7 @@ posta kutusu görevi görür.
 | — | Uygulama içi güncelleme | ✅ tamamlandı (version.json → indirme → sha256 → kurucu) |
 | — | Kullanıcı adı + parola hesabı | ✅ tamamlandı (Firebase; anahtar NIP-49 ile parolayla şifreli) |
 | — | Host/mod yetkisi + duyurular | ✅ tamamlandı (rol kapıları hem istemcide hem kurallarda) |
+| — | Şehirler arası erişim | ✅ tamamlandı (Cloudflare tüneli; adresler `network.json`'dan) |
 
 ## Teknoloji
 
@@ -36,7 +37,7 @@ posta kutusu görevi görür.
 - **Hesaplar:** Firebase Auth + Firestore (yalnız kimlik/rol/duyuru; içerik
   yine relay'de — ADR-013). Nostr anahtarın parolanla NIP-49 şifreli durur.
 - **Push:** Gateway servisi → FCM
-- **Dağıtım:** GitHub Releases (APK + `version.json`)
+- **Dağıtım:** GitHub Releases (APK + `version.json`); ağ adresleri `network.json`
 
 ## Dokümanlar
 
@@ -44,6 +45,7 @@ posta kutusu görevi görür.
 - [`docs/phases.md`](docs/phases.md) — fazlar ve kabul kriterleri
 - [`docs/architecture.md`](docs/architecture.md) — mimari, veri akışı, NIP eşlemesi
 - [`docs/decisions.md`](docs/decisions.md) — alınan kararlar (ADR)
+- [`docs/kurulum.md`](docs/kurulum.md) — arkadaşlar için kurulum (APK, hesap, arkadaş ekleme)
 - [`docs/dev-setup.md`](docs/dev-setup.md) — yerel test ortamı
 - [`docs/ui.md`](docs/ui.md) — arayüz tasarım sistemi ve ekranlar
 
