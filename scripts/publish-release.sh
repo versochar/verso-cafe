@@ -27,14 +27,28 @@ api() { curl -s -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/vnd.
 # Tag'ı işaretleyecek commit: main'in ucu
 SHA=$(git -C "${ROOT}" rev-parse origin/main 2>/dev/null || git -C "${ROOT}" rev-parse HEAD)
 
+VJ_NOTES=$(python3 -c "import json; print(json.load(open('${ROOT}/version.json')).get('notes',''))")
+
+# Gövde python ile kurulur: notlardaki tırnak/satır sonu doğru kaçışlansın.
+PAYLOAD=$(TAG="${TAG}" NOTES="${VJ_NOTES}" python3 -c '
+import json, os
+notes = os.environ.get("NOTES", "").strip()
+body = (notes + "\n\n" if notes else "")
+body += ("Android 8+ — arm64 (yeni telefonlar) veya armv7 (eski telefonlar) "
+         "APKsını kur.\n\nİlk kurulumdan sonra uygulama yeni sürümleri kendi "
+         "indirir; son \"Kur\" onayı Android güvenlik kuralıdır.")
+print(json.dumps({
+    "tag_name": os.environ["TAG"],
+    "name": "Verso Cafe " + os.environ["TAG"],
+    "body": body,
+    "draft": False,
+    "prerelease": False,
+    "target_commitish": "main",
+}, ensure_ascii=False))
+')
+
 echo "→ release ${TAG} oluşturuluyor…"
-REL=$(api -X POST "https://api.github.com/repos/${REPO}/releases" -d "{
-  \"tag_name\": \"${TAG}\",
-  \"name\": \"Verso Cafe ${TAG}\",
-  \"body\": \"Android 8+ — arm64 (yeni telefonlar) veya armv7 (eski telefonlar) APKsını kur.\",
-  \"draft\": false, \"prerelease\": false,
-  \"target_commitish\": \"main\"
-}")
+REL=$(api -X POST "https://api.github.com/repos/${REPO}/releases" -d "$PAYLOAD")
 REL_ID=$(echo "$REL" | python3 -c "import json,sys; d=json.load(sys.stdin); m=d.get('message'); print(d.get('id') or '')" )
 [[ -n "$REL_ID" ]] || { echo "HATA: $(echo "$REL" | head -c 300)" >&2; exit 1; }
 

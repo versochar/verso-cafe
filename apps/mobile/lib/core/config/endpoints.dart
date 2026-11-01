@@ -40,7 +40,11 @@ class Endpoints {
     final json = await _fetch(timeout);
     if (json == null) return;
     if (apply(json)) {
-      await _storage.write(key: _cacheKey, value: jsonEncode(json));
+      try {
+        await _storage.write(key: _cacheKey, value: jsonEncode(json));
+      } catch (_) {
+        // Önbellek yazılamazsa da yeni adresler bu oturum için geçerli.
+      }
     }
   }
 
