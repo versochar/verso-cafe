@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/session/app_session.dart';
+import '../../core/update/update_gate.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets.dart';
 import '../dm/messages_page.dart';
@@ -25,6 +26,28 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   late int _index = widget.initialIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    // Otomatik güncelleme kontrolü: açılıştan kısa bir süre sonra bir kez
+    // (kimlik yüklenmişse hemen, değilse hazır olur olmaz).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 4), () {
+        if (!mounted) return;
+        if (AppSession.instance.ready) {
+          UpdateGate.maybeCheck(context);
+          return;
+        }
+        void onReady() {
+          if (!AppSession.instance.ready) return;
+          AppSession.instance.removeListener(onReady);
+          if (mounted) UpdateGate.maybeCheck(context);
+        }
+        AppSession.instance.addListener(onReady);
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

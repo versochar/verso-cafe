@@ -45,6 +45,13 @@ class KeyStorage {
 
   static const _notifReadKey = 'notif_read_at';
   static const _bgWatchKey = 'bg_watch';
+  static const _updateSkipKey = 'update_skipped';
+
+  /// "Bu sürüm için bir daha hatırlatma" (güncelleme penceresi).
+  Future<String?> loadUpdateSkipped() => _storage.read(key: _updateSkipKey);
+
+  Future<void> saveUpdateSkipped(String version) =>
+      _storage.write(key: _updateSkipKey, value: version);
 
   /// Arka plan bağlantısı tercihi (görev izole edicisi de okuyabilir).
   Future<bool> loadBgWatchEnabled() async =>

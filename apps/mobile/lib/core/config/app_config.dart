@@ -5,7 +5,16 @@
 class AppConfig {
   static const String name = 'Verso Cafe';
   /// `pubspec.yaml` → `version:` ile birlikte güncel tutulur.
-  static const String version = '0.1.1';
+  /// Test sürümleri `--dart-define=APP_VERSION=…` ile geçersiz kılınabilir.
+  static const String version =
+      String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
+
+  /// Güncelleme bildirimi dosyası (ADR-012).
+  static const String updateUrl = String.fromEnvironment(
+    'UPDATE_URL',
+    defaultValue:
+        'https://github.com/versochar/verso-cafe/releases/latest/download/version.json',
+  );
   static const String slug = 'sosyal';
   static const String domain = 'sosyal.dpdns.org';
 

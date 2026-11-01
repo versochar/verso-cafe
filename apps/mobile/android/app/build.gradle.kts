@@ -78,6 +78,8 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // Güncelleyici: FileProvider (APK kurma yetkisi için içerik URI'si).
+    implementation("androidx.core:core-ktx:1.13.1")
 }
 
 flutter {
