@@ -132,9 +132,24 @@ set -a; source .data/public-urls.env; set +a
 ./scripts/release-apk.sh
 ```
 
+### Tünel adresi değişince (APK gerekmez)
+
+Relay/medya adresi `network.json`'dan da okunur (ADR-014). Tünel yeniden
+başladıysa yalnız şunu çalıştır — kurulu uygulamalar bir sonraki açılışta yeni
+adrese geçer:
+
+```bash
+./scripts/tunnel-start.sh       # yeni adresleri üretir
+./scripts/publish-network.sh    # network.json'u yazar, commit'ler, push'lar
+```
+
+Uygulama adresleri açılışta bir kez okur (3 sn sınır); GitHub'a ulaşılamazsa
+son bilinen adres (cihazda saklanır) ya da APK'ya gömülü adres kullanılır.
+
 > **Uyarı:** `tunnel-start.sh` ücretsiz *quick tunnel* kullanır — adresler
-> rastgeledir ve tünel yeniden başladığında **değişir**. Geliştirme/test için
-> uygun; kalıcı yayın adresi için üç yol var:
+> rastgeledir ve tünel yeniden başladığında **değişir**. Adres değişimini
+> `publish-network.sh` ile duyurursan APK yayınlamak gerekmez; yine de kalıcı
+> yayın adresi için üç yol var:
 >
 > 1. **Cloudflare named tunnel** (önerilen): ücretsiz Cloudflare hesabı + alan
 >    adı (Cloudflare DNS'e alınmış). Bir kez `cloudflared tunnel login` +

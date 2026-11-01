@@ -91,3 +91,21 @@ yerel anahtarla kullanım sürer (AuthGate anahtarı Keystore'dan okur).
 Kısıt: Firebase parola alt sınırı 6 karakterdir — 12345 gibi 5 haneli
 parolalar kabul edilmez. Geliştirme/test Firebase Emulator Suite ile yapılır
 (`infra/firebase/`, auth :9099, firestore :8188).
+
+## ADR-014: Ağ adresleri çalışma zamanında `network.json`'dan
+**Bağlam:** Relay/medya adresleri APK'ya derleme sırasında gömülüyordu. Ev
+sunucusu tünelle (Cloudflare) dışarı açıldığında adres tünel yeniden başlayınca
+değişiyor; her değişimde yeni APK yayınlamak hem yavaş hem de arkadaşları her
+seferinde güncellemeye zorluyor.
+**Karar:** Uygulama açılışta `network.json`'u okur
+(`raw.githubusercontent.com/versochar/verso-cafe/main/network.json`) ve
+`relay`/`media` alanları gömülü adreslerin üzerine yazar. Doğrulanan değer
+cihazda saklanır (Keystore), böylece çevrimdışı açılışta son bilinen adres
+kullanılır. Adres değişince tek komut yeter: `scripts/publish-network.sh`.
+**Güvenlik:** Yalnız `wss://` / `https://` kabul edilir; `ws://` / `http://`
+yalnız yerel geliştirme adreslerinde (127.0.0.1, localhost, 10.0.2.2). Böylece
+uzaktan gelen bir yapılandırma uygulamayı cleartext'e düşüremez. Dosya HTTPS ve
+depo üzerinden gelir; TLS araya girmeyi engeller.
+**Sonuç:** Tünel adresi değişince APK yayınlanmaz; arkadaşların uygulaması bir
+sonraki açılışta yeni adrese geçer. Kalıcı bir adres (Cloudflare named tunnel,
+VPS) seçilirse aynı mekanizma sunucu taşımayı da kolaylaştırır.
