@@ -95,7 +95,7 @@ class _AnnouncementsSheet extends StatelessWidget {
                   controller: controller,
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _AnnouncementCard(
                     item: items[i],
                     canDelete: me?.isHost ?? false,

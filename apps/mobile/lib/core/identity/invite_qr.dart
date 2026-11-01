@@ -16,7 +16,7 @@ class InviteQr {
     final payload = jsonEncode({
       'npub': keys.npub,
       'relay': relayUrl,
-      if (displayName != null) 'name': displayName,
+      'name': ?displayName,
     });
     return payload;
   }

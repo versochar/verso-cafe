@@ -61,7 +61,7 @@ class SectionLabel extends StatelessWidget {
         children: [
           Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
           const Spacer(),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -509,7 +509,7 @@ class PageHeader extends StatelessWidget {
               ...actions,
             ],
           ),
-          if (bottom != null) bottom!,
+          ?bottom,
         ],
       ),
     );
