@@ -18,7 +18,7 @@ posta kutusu görevi görür.
 | 4 | Akış, beğeni, yorum, engelleme | ✅ tamamlandı (engelleme + repost dahil) |
 | 5 | Birebir mesajlaşma (NIP-17) | ✅ tamamlandı (gerçek NIP-44) |
 | 6 | Push bildirim | ⏸️ ertelendi (yerine bkz. arka plan bağlantısı) |
-| 7 | Üretim, dağıtım, sürüm | 🟡 imzalı release APK üretildi (github release + güncelleme kontrolü bekliyor) |
+| 7 | Üretim, dağıtım, sürüm | 🟡 [v0.1.1 GitHub Release'te](https://github.com/versochar/verso-cafe/releases/tag/v0.1.1) (uygulama içi güncelleme kontrolü bekliyor) |
 | — | Arayüz modernizasyonu | ✅ tamamlandı (Instagram benzeri düzen dahil) |
 | — | Bildirim merkezi (zil + rozet) | ✅ tamamlandı |
 | — | Arka plan bağlantısı | ✅ tamamlandı (ön plan servisi + Android bildirimi) |

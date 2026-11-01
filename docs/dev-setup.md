@@ -112,7 +112,23 @@ Tek komut: `./scripts/release-apk.sh` → `verso-cafe-release-arm64.apk` (~27 MB
   zorunda; anahtar kaybolursa mevcut kurulumların üzerine kurulamaz.
 - **Gradle bağlantısı:** `apps/mobile/android/key.properties` (dosya yoksa
   derleme sessizce debug anahtara düşer — yayın için var olmalı).
-- Sürüm numarası `pubspec.yaml` → `version:` (ör. `0.1.0+1`); her yayında artır.
+- Sürüm numarası `pubspec.yaml` → `version:` (ör. `0.1.1+2`); her yayında artır
+  ve `version.json` + `AppConfig.version` alanlarını senkron tut.
+
+### GitHub'a yayınlama
+
+Depo: `https://github.com/versochar/verso-cafe` (public).
+
+```bash
+./scripts/release-apk.sh          # APK'ları üret
+# pubspec.yaml sürümünü + version.json'u güncelle, commit'le, push'la
+./scripts/publish-release.sh v0.1.1   # release + APK asset'leri + version.json
+```
+
+Arkadaşlar `Releases` sayfasından ya da şu sabit adresten indirir:
+`…/releases/latest/download/verso-cafe-release-arm64.apk`.
+Uygulama içi güncelleme kontrolü `releases/latest/download/version.json`'u okur
+(ADR-012 — API rate limit'i yok).
 
 ## Sorun Giderme
 
