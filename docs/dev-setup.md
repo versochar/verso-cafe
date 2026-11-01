@@ -101,6 +101,54 @@ flutter test integration_test/phase1_test.dart
 
 Test: npub üretimi → relay bağlantısı → `kind:0` yayınlama → akışta listeleme.
 
+## Genel Erişim (şehirler arası)
+
+Yayınlanan APK'ya gömülen `RELAY_URL`/`MEDIA_URL` neyse uygulama yalnız oraya
+bağlanır. `ws://192.168.x.x` gibi yerel adresler aynı ağdaki telefonları
+çalıştırır; başka şehirdeki bir arkadaş relay'e ulaşamaz (akış boş kalır).
+Sunucuyu dışarı açmanın sudo/router gerektirmeyen yolu Cloudflare tünelidir:
+tünel cihazdan **dışarı** bağlanır, port açmak gerekmez.
+
+```bash
+./scripts/relay-start.sh && ./scripts/media-server-start.sh
+./scripts/tunnel-start.sh          # iki tünel kurar, adresleri yazar
+cat .data/public-urls.env          # RELAY_URL=wss://…  MEDIA_URL=https://…
+./scripts/tunnel-stop.sh
+```
+
+Adresleri doğrulamak için (genel internet üzerinden, telefondan bağımsız):
+
+```bash
+set -a; source .data/public-urls.env; set +a
+cd apps/mobile
+dart run tool/nostr_smoke.dart "$RELAY_URL"        # yayınla → abone ol → geri oku
+dart run tool/relay_peek.dart 1 5                  # relay'deki son gönderileri bas
+```
+
+Baskıya hazır derleme hedefleri otomatik alır ve erişilebilirliklerini dener:
+
+```bash
+set -a; source .data/public-urls.env; set +a
+./scripts/release-apk.sh
+```
+
+> **Uyarı:** `tunnel-start.sh` ücretsiz *quick tunnel* kullanır — adresler
+> rastgeledir ve tünel yeniden başladığında **değişir**. Geliştirme/test için
+> uygun; kalıcı yayın adresi için üç yol var:
+>
+> 1. **Cloudflare named tunnel** (önerilen): ücretsiz Cloudflare hesabı + alan
+>    adı (Cloudflare DNS'e alınmış). Bir kez `cloudflared tunnel login` +
+>    `tunnel create/route dns` ile `relay.versocafe.app` gibi **sabit** adres
+>    elde edilir; quick tunnel ile aynı `cloudflared` süreci, yeniden başlayınca
+>    adres değişmez.
+> 2. **Router port yönlendirme + Caddy**: hattın genel IP'si CGNAT değilse
+>    (bkz. `curl api.ipify.org`) 80/443 yönlendirilir, Caddy otomatik TLS alır,
+>    `sosyal.dpdns.org` gibi ücretsiz bir alan adı A kaydı IP'yi takip eder
+>    (DDNS). Dezavantaj: ev hattı açık port taşır, modem/router araya girer.
+> 3. **Ücretsiz/ucuz VPS** (Oracle Free Tier vb.): relay + medya orada koşar,
+>    ev bilgisayarından bağımsız olur. En dayanıklısı ama kurulum sunucu
+>    bakımı ister.
+
 ## İmzalı Release (Yayın)
 
 Tek komut: `./scripts/release-apk.sh` → `verso-cafe-release-arm64.apk` (~27 MB) ve
