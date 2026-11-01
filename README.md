@@ -18,11 +18,14 @@ posta kutusu görevi görür.
 | 4 | Akış, beğeni, yorum, engelleme | ✅ tamamlandı (engelleme + repost dahil) |
 | 5 | Birebir mesajlaşma (NIP-17) | ✅ tamamlandı (gerçek NIP-44) |
 | 6 | Push bildirim | ⏸️ ertelendi (yerine bkz. arka plan bağlantısı) |
-| 7 | Üretim, dağıtım, sürüm | 🟡 [v0.1.1 GitHub Release'te](https://github.com/versochar/verso-cafe/releases/tag/v0.1.1) (uygulama içi güncelleme kontrolü bekliyor) |
+| 7 | Üretim, dağıtım, sürüm | 🟡 [v0.1.1 GitHub Release'te](https://github.com/versochar/verso-cafe/releases/tag/v0.1.1); v0.2.0 hazır (uygulama içi güncelleme doğrulandı) |
 | — | Arayüz modernizasyonu | ✅ tamamlandı (Instagram benzeri düzen dahil) |
 | — | Bildirim merkezi (zil + rozet) | ✅ tamamlandı |
 | — | Arka plan bağlantısı | ✅ tamamlandı (ön plan servisi + Android bildirimi) |
 | — | QR ile arkadaş ekleme | ✅ tamamlandı (kamera + galeriden tarama) |
+| — | Uygulama içi güncelleme | ✅ tamamlandı (version.json → indirme → sha256 → kurucu) |
+| — | Kullanıcı adı + parola hesabı | ✅ tamamlandı (Firebase; anahtar NIP-49 ile parolayla şifreli) |
+| — | Host/mod yetkisi + duyurular | ✅ tamamlandı (rol kapıları hem istemcide hem kurallarda) |
 
 ## Teknoloji
 
@@ -30,6 +33,8 @@ posta kutusu görevi görür.
 - **Protokol:** Nostr — BIP-340 Schnorr (secp256k1) imzalı event log
 - **Relay:** `nostr-rs-relay` (yerel test), `strfry` (üretim)
 - **Medya:** Kendi sunulan Dart sunucusu (`apps/media-server`, NIP-98 auth)
+- **Hesaplar:** Firebase Auth + Firestore (yalnız kimlik/rol/duyuru; içerik
+  yine relay'de — ADR-013). Nostr anahtarın parolanla NIP-49 şifreli durur.
 - **Push:** Gateway servisi → FCM
 - **Dağıtım:** GitHub Releases (APK + `version.json`)
 

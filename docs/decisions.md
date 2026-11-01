@@ -72,3 +72,22 @@ Yeni bir `applicationId` ancak sıfırdan kurulum yapılabilirse mantıklı olur
 **Bağlam:** Anonim GitHub API saatte 60 istekle sınırlı.
 **Karar:** `releases/latest/download/version.json` doğrudan asset URL'i.
 **Sonuç:** Rate limit yok, cache'lenebilir, uygulama içi kontrol basit.
+
+## ADR-013: Hesaplar — Firebase Auth + Firestore, içerik yine Nostr'da
+**Bağlam:** Kullanıcı adı + parola girişi ve host/mod yetki sistemi istendi;
+Nostr'da klasik parola kavramı yok (anahtar = kimlik).
+**Karar:** Hibrit model. Kimlik katmanı Firebase'de: kullanıcı adı
+`ad@hesap.verso.app` e-postasına eşlenir, kayıtta Nostr anahtar çifti üretilir ve
+**NIP-49 ile kullanıcının parolasıyla şifrelenip** `users/{uid}` belgesinde
+saklanır; girişte parola ile çözülür. Sunucuda düz anahtar/parola durmaz.
+İçerik (gönderi/DM/fotoğraf) eskisi gibi relay + medya sunucusunda.
+Roller `users/{uid}.role`: `host | mod | user`. Tohum host `hosthesap`
+kural olarak Firestore güvenlik kurallarında tanımlıdır (yalnız o e-posta
+host olarak doğabilir); sonraki tüm rol değişikliklerini yalnız mevcut host
+yapar — hostluk devri de bir rol güncellemesidir. Duyurular
+`announcements/{id}` koleksiyonunda; yazma yalnız host/mod.
+**Sonuç:** Başka cihazda ad+parola ile anahtara dönülür. Firebase erişilemezse
+yerel anahtarla kullanım sürer (AuthGate anahtarı Keystore'dan okur).
+Kısıt: Firebase parola alt sınırı 6 karakterdir — 12345 gibi 5 haneli
+parolalar kabul edilmez. Geliştirme/test Firebase Emulator Suite ile yapılır
+(`infra/firebase/`, auth :9099, firestore :8188).

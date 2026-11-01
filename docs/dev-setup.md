@@ -130,6 +130,70 @@ Arkadaşlar `Releases` sayfasından ya da şu sabit adresten indirir:
 Uygulama içi güncelleme kontrolü `releases/latest/download/version.json`'u okur
 (ADR-012 — API rate limit'i yok).
 
+## Firebase Hesapları (yalnız geliştirme: Emulator Suite)
+
+Kayıt/giriş, roller ve duyurular Firebase'de; içerik yine relay'de (ADR-013).
+Geliştirme için Google hesabı gerekmez — **Firebase Emulator Suite** kullanılır
+(`firebase-tools` `~/.npm-global` içinde kurulu, `scripts/env.sh` PATH'ine ekler).
+
+```bash
+source scripts/env.sh
+cd infra/firebase
+firebase emulators:start --project demo-verso-cafe   # auth :9099, firestore :8188
+```
+
+Emülatör veri tutmaz (bellek içi); kapatınca hesaplar/duyurular silinir.
+Kalıcı snapshot için: `firebase emulators:export .data/firebase` / `--import`.
+
+İstemciyi emülatöre bağlamak için:
+
+```bash
+cd apps/mobile
+flutter run --dart-define=FIREBASE_EMULATOR=10.0.2.2
+```
+
+- `FIREBASE_EMULATOR` doluysa uygulama Auth'u `:9099`, Firestore'u `:8188`
+  adresine yönlendirir; boşsa gerçek projeye bağlanır.
+- Emülatörde **`10.0.2.2` kullan** (cihazın PC'ye açılan kapısı). `127.0.0.1`
+  işe yaramaz: `cloud_firestore` Android tarafı döngü adresini logda görünen
+  biçimde zorla `10.0.2.2`'ye çevirir, `adb reverse` de bu yüzden işe yaramaz.
+- Emülatör düz HTTP konuşur; `network_security_config.xml` cleartext'i **yalnız**
+  `127.0.0.1`/`localhost`/`10.0.2.2` için açar (üretim trafiği HTTPS/WS kalır).
+- Bağlantı koparsa ("client is offline", `ENETUNREACH`): emülatörde hem mobil hem
+  Wi-Fi ağı açıksa gRPC kanalı bazen IPv6'sız ağa bağlanıp yol bulamıyor. Tek
+  ağa indir: `adb -e shell svc wifi disable`.
+
+Kuralların gerçekten uygulandığını (istemciden bağımsız) doğrulamak için:
+
+```bash
+python3 infra/firebase/rules_check.py [host_adı host_parolası [üye_adı üye_parolası]]
+```
+
+Mod duyuru yazar, sıradan üye yazamaz, kimse kendi rolünü yükseltemez,
+token'sız okuma yoktur; betik denemeleri temizleyip rolleri eski hâline döndürür.
+
+### Gerçek proje (yayın için bir kerelik)
+
+1. `firebase login` (tarayıcı) → `firebase projects:create verso-cafe`
+2. Firebase Console → Authentication → **Email/Password**'ı etkinleştir
+3. Cloud Firestore veritabanı oluştur, `infra/firebase/firestore.rules`'ü yayınla:
+   `firebase deploy --only firestore:rules --project verso-cafe`
+4. Android uygulaması kaydet (**paket adı `com.sosyal.app`**), indirilen
+   `google-services.json`'u `apps/mobile/android/app/` içine koy (depodaki
+   dosya `demo-verso-cafe` yer tutucusudur — gerçek anahtar olmadan hesaplar
+   çalışmaz, uygulama yerel anahtarla devam eder)
+5. `FIREBASE_EMULATOR` define'ı **olmadan** derle
+
+Parola alt sınırı Firebase'de **6 karakterdir** (emülatörde de, gerçek
+projede de; firebase-tools ayarla düşürülemez). `12345` gibi 5 haneli parolalar
+`WEAK_PASSWORD` ile reddedilir.
+
+Tohum host: host olarak doğabilen tek hesap kuralda yazılıdır —
+`hosthesap@hesap.verso.app`. Kendi hesabını host yapma yolu: önce `hosthesap`
+kayıt olur, sonra Ayarlar → Yetki yönetimi → hesabın → "Hostluğu devret"
+denir; hostluk devredildikten sonra `hosthesap` normal üyeye düşer ve yetkisi
+kalmaz (geri alınamaz, yeni host isterse mod verebilir).
+
 ## Sorun Giderme
 
 | Belirti | Çözüm |
@@ -139,6 +203,7 @@ Uygulama içi güncelleme kontrolü `releases/latest/download/version.json`'u ok
 | `flutter doctor` Android SDK'yı görmüyor | `flutter config --android-sdk ~/Android/Sdk` |
 | Relay başlamıyor | `.data/relay.log` oku; port 7777 dolu mu: `ss -lntp \| grep 7777` |
 | Uygulama "Bağlı değil" diyor | Relay çalışıyor mu: `ss -lntp \| grep 7777`; emülatör/telefon için: `adb reverse tcp:7777 tcp:7777` |
+| Girişte "client is offline" / `ENETUNREACH` | Firebase emülatörü açık mı (`:9099`, `:8188`); `FIREBASE_EMULATOR=10.0.2.2` kullan; emülatörde `adb -e shell svc wifi disable` ile tek ağa indir |
 | `time 0.3.25` derleme hatası | `cargo install nostr-rs-relay` (`--locked` kullanma) |
 | `Multiple adb binaries found` uyarısı | Zararsız; `platform-tools` PATH'te önce gelir |
 | Gradle indirmesi yavaş | `~/.gradle` ilk build'de ~1 GB indirir, normal |
