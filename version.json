@@ -1,0 +1,10 @@
+{
+  "version": "0.1.1",
+  "versionCode": 2,
+  "notes": "Verso Cafe ilk yayın: QR ile arkadaş ekleme, fotoğraflı gönderi, arka plan bildirimleri.",
+  "publishedAt": "2026-11-01",
+  "assets": {
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v0.1.1/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v0.1.1/verso-cafe-release-armv7.apk"
+  }
+}
