@@ -103,16 +103,17 @@ Test: npub üretimi → relay bağlantısı → `kind:0` yayınlama → akışta
 
 ## Genel Erişim (şehirler arası)
 
-Yayınlanan APK'ya gömülen `RELAY_URL`/`MEDIA_URL` neyse uygulama yalnız oraya
-bağlanır. `ws://192.168.x.x` gibi yerel adresler aynı ağdaki telefonları
+Yayınlanan APK'ya gömülen `RELAY_URL`/`MEDIA_URL`/`ACCOUNT_URL` neyse uygulama
+yalnız oraya bağlanır. `ws://192.168.x.x` gibi yerel adresler aynı ağdaki telefonları
 çalıştırır; başka şehirdeki bir arkadaş relay'e ulaşamaz (akış boş kalır).
 Sunucuyu dışarı açmanın sudo/router gerektirmeyen yolu Cloudflare tünelidir:
 tünel cihazdan **dışarı** bağlanır, port açmak gerekmez.
 
 ```bash
-./scripts/serve.sh                 # relay + medya + tünel, adres değiştiyse duyurur
-cat .data/public-urls.env          # RELAY_URL=wss://…  MEDIA_URL=https://…
-./scripts/tunnel-stop.sh           # (durdurma: tunnel-stop + media-server-stop + relay-stop)
+./scripts/serve.sh                 # relay + medya + hesap + tünel, adres değiştiyse duyurur
+cat .data/public-urls.env          # RELAY_URL=wss://…  MEDIA_URL=…  ACCOUNT_URL=…
+./scripts/tunnel-stop.sh           # (durdurma: tunnel-stop + account-server-stop
+                                   #  + media-server-stop + relay-stop)
 ```
 
 Bilgisayar her açıldığında tek komut yeterlidir: `./scripts/serve.sh`.
@@ -135,7 +136,7 @@ set -a; source .data/public-urls.env; set +a
 
 ### Tünel adresi değişince (APK gerekmez)
 
-Relay/medya adresi `network.json`'dan da okunur (ADR-014). Tünel yeniden
+Relay/medya/hesap adresi `network.json`'dan da okunur (ADR-014). Tünel yeniden
 başladıysa yalnız şunu çalıştır — kurulu uygulamalar bir sonraki açılışta yeni
 adrese geçer:
 
@@ -194,71 +195,53 @@ Arkadaşlar `Releases` sayfasından ya da şu sabit adresten indirir:
 Uygulama içi güncelleme kontrolü `releases/latest/download/version.json`'u okur
 (ADR-012 — API rate limit'i yok).
 
-## Firebase Hesapları (yalnız geliştirme: Emulator Suite)
+## Hesap Sunucusu (kayıt/giriş, roller, duyurular)
 
-Kayıt/giriş, roller ve duyurular Firebase'de; içerik yine relay'de (ADR-013).
-Geliştirme için Google hesabı gerekmez — **Firebase Emulator Suite** kullanılır
-(`firebase-tools` `~/.npm-global` içinde kurulu, `scripts/env.sh` PATH'ine ekler).
+Hesaplar, roller ve duyurular ev bilgisayarında çalışan küçük bir Dart
+servisinde tutulur (ADR-015); içerik yine relay + medya sunucusunda.
+Firebase/Google hesabı, `google-services.json` ve emülatör gerekmez.
 
 ```bash
-source scripts/env.sh
-cd infra/firebase
-firebase emulators:start --project demo-verso-cafe   # auth :9099, firestore :8188
+./scripts/account-server-start.sh    # http://127.0.0.1:8090
+./scripts/account-server-stop.sh
 ```
 
-Emülatör veri tutmaz (bellek içi); kapatınca hesaplar/duyurular silinir.
-Kalıcı snapshot için: `firebase emulators:export .data/firebase` / `--import`.
+- **Veri:** `${ACCOUNT_DB:-$HOME/sosyal-accounts/accounts.json}`. Dosyayı
+  kopyalamak yedek almak için yeterlidir (parolalar PBKDF2, anahtarlar NIP-49
+  ile şifreli).
+- **Parola:** en az 6 karakter; sunucuda PBKDF2-HMAC-SHA256 (60.000 tur,
+  kullanıcıya özel tuz) özeti durur, düz parola asla yazılmaz.
+- **Oturum:** rastgele bearer jeton, sunucuda yalnız sha256 özeti; 30 gün.
+- **Tohum host:** ilk kayıt `hosthesap` adıyla yapılırsa o hesap host olur.
+  Host, Profil → **Yetki yönetimi**'nden mod atar ve hostluğu devreder.
+  Duyuruyu yalnız host/mod yazar, yalnız host siler.
+- **Uçlar:** `POST /v1/register`, `/v1/login`, `/v1/logout`, `/v1/password`,
+  `/v1/host/transfer`, `/v1/announcements`; `GET /v1/me`, `/v1/users`,
+  `/v1/announcements`, `/healthz`; `PATCH /v1/users/<id>/role`,
+  `DELETE /v1/announcements/<id>`. Parola denemesi 10 dakikada 8'i aşarsa 429.
 
-İstemciyi emülatöre bağlamak için:
+İstemciyi yerel sunucuya bağlamak için (emülatörde `10.0.2.2`):
 
 ```bash
 cd apps/mobile
-flutter run --dart-define=FIREBASE_EMULATOR=10.0.2.2
+flutter run --dart-define=ACCOUNT_URL=http://10.0.2.2:8090
 ```
 
-- `FIREBASE_EMULATOR` doluysa uygulama Auth'u `:9099`, Firestore'u `:8188`
-  adresine yönlendirir; boşsa gerçek projeye bağlanır.
-- Geliştirme modunda `network.json` okunmaz (üretim tünel adresleri yerel
-  relay'i ezmesin); istenirse `--dart-define=NETWORK_URL=` ile de kapatılır.
-- Emülatörde **`10.0.2.2` kullan** (cihazın PC'ye açılan kapısı). `127.0.0.1`
-  işe yaramaz: `cloud_firestore` Android tarafı döngü adresini logda görünen
-  biçimde zorla `10.0.2.2`'ye çevirir, `adb reverse` de bu yüzden işe yaramaz.
-- Emülatör düz HTTP konuşur; `network_security_config.xml` cleartext'i **yalnız**
-  `127.0.0.1`/`localhost`/`10.0.2.2` için açar (üretim trafiği HTTPS/WS kalır).
-- Bağlantı koparsa ("client is offline", `ENETUNREACH`): emülatörde hem mobil hem
-  Wi-Fi ağı açıksa gRPC kanalı bazen IPv6'sız ağa bağlanıp yol bulamıyor. Tek
-  ağa indir: `adb -e shell svc wifi disable`.
+`network.json` okuması varsayılan olarak açıktır (ADR-014); yerel adresleri
+korumak için `--dart-define=NETWORK_URL=` ile kapatılır.
 
-Kuralların gerçekten uygulandığını (istemciden bağımsız) doğrulamak için:
+Uçtan uca hızlı deneme (uygulama olmadan):
 
 ```bash
-python3 infra/firebase/rules_check.py [host_adı host_parolası [üye_adı üye_parolası]]
+PK=$(printf 'a%.0s' {1..64})
+curl -s -X POST http://127.0.0.1:8090/v1/register \
+  -H 'Content-Type: application/json' \
+  -d "{\"username\":\"deneme\",\"password\":\"123456\",\"pubkey\":\"$PK\",\
+       \"npub\":\"npub1...\",\"ncryptsec\":\"ncryptsec1...\"}"
 ```
 
-Mod duyuru yazar, sıradan üye yazamaz, kimse kendi rolünü yükseltemez,
-token'sız okuma yoktur; betik denemeleri temizleyip rolleri eski hâline döndürür.
-
-### Gerçek proje (yayın için bir kerelik)
-
-1. `firebase login` (tarayıcı) → `firebase projects:create verso-cafe`
-2. Firebase Console → Authentication → **Email/Password**'ı etkinleştir
-3. Cloud Firestore veritabanı oluştur, `infra/firebase/firestore.rules`'ü yayınla:
-   `firebase deploy --only firestore:rules --project verso-cafe`
-4. Android uygulaması kaydet (**paket adı `com.sosyal.app`**), indirilen
-   `google-services.json`'u `apps/mobile/android/app/` içine koy (depodaki
-   dosya `demo-verso-cafe` yer tutucusudur — gerçek anahtar olmadan hesaplar
-   çalışmaz, uygulama yerel anahtarla devam eder)
-5. `FIREBASE_EMULATOR` define'ı **olmadan** derle
-
-Parola alt sınırı Firebase'de **6 karakterdir** (emülatörde de, gerçek
-projede de; firebase-tools ayarla düşürülemez). `12345` gibi 5 haneli parolalar
-`WEAK_PASSWORD` ile reddedilir.
-
-Tohum host: host olarak doğabilen tek hesap kuralda yazılıdır —
-`hosthesap@hesap.verso.app`. Kendi hesabını host yapma yolu: önce `hosthesap`
-kayıt olur, sonra Ayarlar → Yetki yönetimi → hesabın → "Hostluğu devret"
-denir; hostluk devredildikten sonra `hosthesap` normal üyeye düşer ve yetkisi
-kalmaz (geri alınamaz, yeni host isterse mod verebilir).
+`scripts/serve.sh` hesap sunucusunu da başlatır; `tunnel-start.sh` üçüncü
+tüneli açar ve `network.json`'a `account` alanını yazar.
 
 ## Sorun Giderme
 
@@ -269,7 +252,7 @@ kalmaz (geri alınamaz, yeni host isterse mod verebilir).
 | `flutter doctor` Android SDK'yı görmüyor | `flutter config --android-sdk ~/Android/Sdk` |
 | Relay başlamıyor | `.data/relay.log` oku; port 7777 dolu mu: `ss -lntp \| grep 7777` |
 | Uygulama "Bağlı değil" diyor | Relay çalışıyor mu: `ss -lntp \| grep 7777`; emülatör/telefon için: `adb reverse tcp:7777 tcp:7777` |
-| Girişte "client is offline" / `ENETUNREACH` | Firebase emülatörü açık mı (`:9099`, `:8188`); `FIREBASE_EMULATOR=10.0.2.2` kullan; emülatörde `adb -e shell svc wifi disable` ile tek ağa indir |
+| Girişte "Hesap sunucusuna ulaşılamadı" | Hesap sunucusu açık mı: `curl -s http://127.0.0.1:8090/healthz`; emülatör/telefon için `ACCOUNT_URL` doğru mu (`10.0.2.2`, tünel) |
 | `time 0.3.25` derleme hatası | `cargo install nostr-rs-relay` (`--locked` kullanma) |
 | `Multiple adb binaries found` uyarısı | Zararsız; `platform-tools` PATH'te önce gelir |
 | Gradle indirmesi yavaş | `~/.gradle` ilk build'de ~1 GB indirir, normal |

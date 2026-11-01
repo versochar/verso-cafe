@@ -1,14 +1,14 @@
 {
-  "version": "0.2.0",
-  "versionCode": 2003,
-  "notes": "Şehir dışından da konuşabilirsin: relay ve fotoğraflar artık internet üzerinden. Yeni: kullanıcı adı + parola hesabı (anahtarın parolanla şifreli saklanır), host/mod duyuruları, uygulama içi güncelleme.",
+  "version": "0.3.0",
+  "versionCode": 2004,
+  "notes": "Hesap sunucusu ev bilgisayarında (Firebase kaldırıldı), hikâye özelliği, 24 saat TTL, görüldü takibi; şehirler arası erişim korundu.",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v0.2.0/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v0.2.0/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v0.3.0/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v0.3.0/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "87db2ff3c8b74a5bfd9de53b2747d1740507af18a9f1f2576436c6902e70bb5e",
-    "armeabi-v7a": "498a6f0dc54ec4968739907945375f47f0803d7c185ef1c96019dd25b7d6f2b1"
+    "arm64-v8a": "97e9b70e8676b02c118ee199c0dc92c8edc3514c1287ae0b2ef60fb207e53395",
+    "armeabi-v7a": "918717719162c0c36b99d5d186da28b336e1a0b5f5470674a569a36addb1c2c7"
   }
 }

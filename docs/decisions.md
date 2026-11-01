@@ -74,6 +74,9 @@ Yeni bir `applicationId` ancak sıfırdan kurulum yapılabilirse mantıklı olur
 **Sonuç:** Rate limit yok, cache'lenebilir, uygulama içi kontrol basit.
 
 ## ADR-013: Hesaplar — Firebase Auth + Firestore, içerik yine Nostr'da
+> **Durum: ADR-015 ile geçersiz kılındı.** Firebase/Google hesabı gerekmediği
+> için hesaplar kendi sunucumuza taşındı; aşağıdaki metin tarihsel kayıttır.
+
 **Bağlam:** Kullanıcı adı + parola girişi ve host/mod yetki sistemi istendi;
 Nostr'da klasik parola kavramı yok (anahtar = kimlik).
 **Karar:** Hibrit model. Kimlik katmanı Firebase'de: kullanıcı adı
@@ -99,9 +102,9 @@ değişiyor; her değişimde yeni APK yayınlamak hem yavaş hem de arkadaşlar�
 seferinde güncellemeye zorluyor.
 **Karar:** Uygulama açılışta `network.json`'u okur
 (`raw.githubusercontent.com/versochar/verso-cafe/main/network.json`) ve
-`relay`/`media` alanları gömülü adreslerin üzerine yazar. Doğrulanan değer
-cihazda saklanır (Keystore), böylece çevrimdışı açılışta son bilinen adres
-kullanılır. Adres değişince tek komut yeter: `scripts/publish-network.sh`.
+`relay`/`media`/`account` alanları gömülü adreslerin üzerine yazar. Doğrulanan
+değer cihazda saklanır (Keystore), böylece çevrimdışı açılışta son bilinen
+adres kullanılır. Adres değişince tek komut yeter: `scripts/publish-network.sh`.
 **Güvenlik:** Yalnız `wss://` / `https://` kabul edilir; `ws://` / `http://`
 yalnız yerel geliştirme adreslerinde (127.0.0.1, localhost, 10.0.2.2). Böylece
 uzaktan gelen bir yapılandırma uygulamayı cleartext'e düşüremez. Dosya HTTPS ve
@@ -109,3 +112,28 @@ depo üzerinden gelir; TLS araya girmeyi engeller.
 **Sonuç:** Tünel adresi değişince APK yayınlanmaz; arkadaşların uygulaması bir
 sonraki açılışta yeni adrese geçer. Kalıcı bir adres (Cloudflare named tunnel,
 VPS) seçilirse aynı mekanizma sunucu taşımayı da kolaylaştırır.
+
+## ADR-015: Hesaplar kendi sunucumuzda — sıfır dış bağımlılık
+**Bağlam:** ADR-013 hesapları Firebase'e bağlamıştı. Firebase projesi açmak,
+`google-services.json` üretmek ve Google hesabı yönetmek istemedik; ayrıca
+kullanıcı "sunucu tamamen benim bilgisayarımda olsun" dedi. Arkadaş çemberi
+küçük: birkaç on hesap, günde birkaç yüz istek.
+**Karar:** `apps/account-server` — yalnız `dart:io` + `crypto` ile yazılmış,
+ev bilgisayarında çalışan hesap servisi. Kullanıcı adı + parola, roller ve
+duyurular burada; gönderi/DM/fotoğraf yine Nostr relay + medya sunucusunda.
+- Parola asla düz saklanmaz: PBKDF2-HMAC-SHA256, kullanıcıya özel tuz,
+  60.000 tur. Oturum jetonu rastgele üretilir, sunucuda yalnız sha256 özeti
+  tutulur; 30 gün geçerli, çıkışta iptal edilir.
+- Nostr anahtarı sunucuda düz durmaz: istemci NIP-49 ile parolayla şifreler,
+  sunucu yalnız `ncryptsec` paketini saklar. Girişte istemci çözer.
+- Roller: tohum host `hosthesap` (ilk kayıt); host mod/user atar, hostluğu
+  devreder. Duyuruyu yalnız host/mod yazar, yalnız host siler.
+- Depo: `${ACCOUNT_DB:-$HOME/sosyal-accounts/accounts.json}`; yazma atomik
+  (tmp + rename). Sunucu dışarıya yalnız Cloudflare tüneliyle açılır.
+- Kötüye kullanım: aynı kullanıcı adında 10 dakikada 8 başarısız girişten
+  sonra 429 (bellekte; yeniden başlatınca sıfırlanır).
+**Sonuç:** Google/Firebase hesabı, emülatör ve `google-services.json` gerekmez;
+sunucu `./scripts/serve.sh` ile ayağa kalkar. Adres `network.json` → `account`
+alanından gelir (ADR-014). Kısıt: sunucu kapalıysa yeni giriş/kayıt yapılamaz;
+cihazdaki mevcut anahtarla uygulama çalışmaya devam eder. Yedek: JSON dosyasını
+kopyalamak yeterli (parolalar PBKDF2, anahtarlar NIP-49 ile şifreli).
