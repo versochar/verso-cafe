@@ -31,7 +31,23 @@ for f in verso-cafe-release-arm64.apk verso-cafe-release-armv7.apk; do
   }
 done
 
-python3 - "$ROOT" "$VERSION" "$PUB_CODE" "$NOTES" <<'PY'
+# Gerçek versionCode/versionName APK'dan okunur: split APK'larda Flutter
+# mimari başına 1000 ekler (arm64 = 2000 + pubspec, armv7 = 1000 + pubspec).
+source "${ROOT}/scripts/env.sh" >/dev/null
+AAPT2="$(command -v aapt2 || echo "${ANDROID_HOME}/build-tools/36.0.0/aapt2")"
+# `head -1` boruyu erken kapatıp SIGPIPE üretir; pipefail + set -e betiği
+# sessizce düşürüyordu. sed tüm çıktıyı okuyup ilk satırı alır.
+BADGING="$("${AAPT2}" dump badging "${ROOT}/verso-cafe-release-arm64.apk" 2>/dev/null | sed -n '1p')"
+APK_CODE="$(sed -nE "s/.*versionCode='([0-9]+)'.*/\1/p" <<<"$BADGING")"
+APK_NAME="$(sed -nE "s/.*versionName='([^']+)'.*/\1/p" <<<"$BADGING")"
+[[ "$APK_NAME" == "$VERSION" ]] || {
+  echo "HATA: APK sürümü '${APK_NAME}', verilen ${VERSION} ile uyuşmuyor —" >&2
+  echo "      APK'lar bayat olabilir; ./scripts/release-apk.sh ile yeniden derle." >&2
+  exit 1
+}
+CODE="${APK_CODE:-$((1000 * 2 + PUB_CODE))}"
+
+python3 - "$ROOT" "$VERSION" "$CODE" "$NOTES" <<'PY'
 import datetime, hashlib, json, os, sys
 
 root, version, code, notes = sys.argv[1:5]
