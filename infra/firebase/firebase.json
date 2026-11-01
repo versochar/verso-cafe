@@ -1,0 +1,16 @@
+{
+  "auth": {
+    "minimumPasswordLength": 5
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json",
+    "flags": { "new_rules_evaluation": true }
+  },
+  "emulators": {
+    "auth": { "port": 9099, "host": "0.0.0.0" },
+    "firestore": { "port": 8188, "host": "0.0.0.0" },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// Verso Cafe hesap/rol/duyuru kuralları.
+//
+// Roller users/{uid}.role alanındadır: "host" | "mod" | "user".
+// - Hostluğu yalnız mevcut host devredebilir (role=host yazabilmek için
+//   okuyanın host olması ya da koleksiyonun boş olması gerekir).
+// - Duyuru yazmak/mod eklemek için host ya da mod olmak gerekir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function callerDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function callerRole() {
+      return signedIn() ? callerDoc().role : "anonymous";
+    }
+
+    function isHost() {
+      return signedIn() && callerRole() == "host";
+    }
+
+    function isStaff() {
+      return signedIn() && (callerRole() == "host" || callerRole() == "mod");
+    }
+
+    // Tohum host: hosthesap hesabı kaydolurken host doğabilir (yalnız o
+    // e-posta). Sonraki tüm rol değişiklikleri mevcut host tarafından yapılır.
+    function bootstrapHost() {
+      return signedIn() &&
+             request.auth.token.email == "hosthesap@hesap.verso.app";
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+      // Kendi belgeni yalnız oluştururken yazabilirsin; rolü sadece host
+      // değiştirir (kendi hostluk devri dahil).
+      allow create: if signedIn() && request.auth.uid == uid &&
+                    (request.resource.data.role == "user" ||
+                     (request.resource.data.role == "host" && bootstrapHost()));
+      allow update: if isHost() ||
+                    (signedIn() && request.auth.uid == uid &&
+                     request.resource.data.diff(resource.data)
+                       .affectedKeys().hasOnly(
+                         ['ncryptsec', 'pubkey', 'npub', 'lastSeenAt']));
+      allow delete: if false;
+    }
+
+    match /announcements/{id} {
+      allow read: if signedIn();
+      allow create: if isStaff();
+      // Yazarı silmez; host her şeyi, mod yalnız kendi duyurusunu düzenler.
+      allow update: if isHost() ||
+                    (callerRole() == "mod" && resource.data.authorUid == request.auth.uid);
+      allow delete: if isHost();
+    }
+  }
+}
