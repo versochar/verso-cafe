@@ -26,9 +26,16 @@ class Endpoints {
   ///
   /// Hata dışarı sızmaz — ağ yoksa ya da dosya bozuksa gömülü adresler geçerli
   /// kalır. Zaman aşımı kısa tutulur ki çevrimdışı açılış beklemesin.
+  ///
+  /// Geliştirme modunda (Firebase emülatörü açık) ya da `NETWORK_URL` boşsa
+  /// uzak yapılandırma okunmaz: yerel relay/medya adresleri korunur.
   static Future<void> load({
     Duration timeout = const Duration(seconds: 3),
   }) async {
+    if (AppConfig.networkUrl.isEmpty ||
+        AppConfig.firebaseEmulatorHost.isNotEmpty) {
+      return;
+    }
     await _applyCached();
     final json = await _fetch(timeout);
     if (json == null) return;

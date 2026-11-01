@@ -217,6 +217,8 @@ flutter run --dart-define=FIREBASE_EMULATOR=10.0.2.2
 
 - `FIREBASE_EMULATOR` doluysa uygulama Auth'u `:9099`, Firestore'u `:8188`
   adresine yönlendirir; boşsa gerçek projeye bağlanır.
+- Geliştirme modunda `network.json` okunmaz (üretim tünel adresleri yerel
+  relay'i ezmesin); istenirse `--dart-define=NETWORK_URL=` ile de kapatılır.
 - Emülatörde **`10.0.2.2` kullan** (cihazın PC'ye açılan kapısı). `127.0.0.1`
   işe yaramaz: `cloud_firestore` Android tarafı döngü adresini logda görünen
   biçimde zorla `10.0.2.2`'ye çevirir, `adb reverse` de bu yüzden işe yaramaz.
