@@ -7,7 +7,7 @@ class AppConfig {
   /// `pubspec.yaml` → `version:` ile birlikte güncel tutulur.
   /// Test sürümleri `--dart-define=APP_VERSION=…` ile geçersiz kılınabilir.
   static const String version =
-      String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
+      String.fromEnvironment('APP_VERSION', defaultValue: '0.3.0');
 
   /// Güncelleme bildirimi dosyası (ADR-012).
   static const String updateUrl = String.fromEnvironment(
@@ -35,6 +35,13 @@ class AppConfig {
     defaultValue: 'http://127.0.0.1:8080',
   );
 
+  /// Hesap servisi (kullanıcı adı/parola, roller, duyurular). Firebase yerine
+  /// ev sunucusunda çalışır; varsayılan yerel geliştirme adresidir.
+  static String accountUrl = const String.fromEnvironment(
+    'ACCOUNT_URL',
+    defaultValue: 'http://127.0.0.1:8090',
+  );
+
   /// Ağ adreslerinin çalışma zamanı kaynağı (ADR-014).
   ///
   /// Depodaki `network.json`; tünel adresi değişince yalnız bu dosya güncellenir
@@ -45,9 +52,4 @@ class AppConfig {
     defaultValue:
         'https://raw.githubusercontent.com/versochar/verso-cafe/main/network.json',
   );
-
-  /// Firebase Auth/Firestore emülatörünün adresi (ör. Android emülatöründen
-  /// ana makine: 10.0.2.2). Boşsa gerçek Firebase projesine bağlanılır.
-  static const String firebaseEmulatorHost =
-      String.fromEnvironment('FIREBASE_EMULATOR');
 }

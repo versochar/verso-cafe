@@ -9,6 +9,7 @@ import '../nostr/event.dart';
 import '../nostr/keys.dart';
 import '../nostr/nip17_nip44.dart';
 import '../nostr/relay_client.dart';
+import '../stories/story.dart';
 
 /// Başka bir kullanıcının `kind:0` içeriğinden çıkarılan görünüm bilgisi.
 class ProfileView {
@@ -327,20 +328,29 @@ class AppSession extends ChangeNotifier {
       .length;
 
   /// Bir kişinin gönderileri (en yeni önce); sessize aldıysam boş.
+  /// Hikâyeler ana akış/profil listesinde görünmez.
   List<NostrEvent> notesBy(String pubkey) => isMuted(pubkey)
       ? const []
-      : notes.where((e) => e.pubkey == pubkey).toList();
+      : notes
+          .where((e) =>
+              e.pubkey == pubkey &&
+              !Story.isStory(e) &&
+              !Story.isExpired(e))
+          .toList();
 
-  /// Son günlerde gönderi atan kişiler; hikâye sırası için.
+  /// Son günlerde gönderi atan kişiler.
   List<String> activeAuthors({int limit = 12}) {
     final seen = <String>{};
-    for (final note in notes) {
-      if (isMuted(note.pubkey)) continue;
+    for (final note in visibleNotes) {
       seen.add(note.pubkey);
       if (seen.length >= limit) break;
     }
     return seen.toList();
   }
+
+  /// Aktif hikâyeler, yazara göre gruplu (en yeni grup önce).
+  List<StoryGroup> get storyGroups =>
+      Story.group(notes, isMuted: isMuted);
 
   /// Bir gönderiye yapılmış yorumlar (en yeni önce).
   List<NostrEvent> commentsFor(String eventId) =>
@@ -415,9 +425,13 @@ class AppSession extends ChangeNotifier {
     return publish(event);
   }
 
-  /// Sessize aldıklarımın gönderileri hariç akış.
-  List<NostrEvent> get visibleNotes =>
-      notes.where((e) => !isMuted(e.pubkey)).toList();
+  /// Sessize aldıklarımın gönderileri ve hikâyeler hariç akış.
+  List<NostrEvent> get visibleNotes => notes
+      .where((e) =>
+          !isMuted(e.pubkey) &&
+          !Story.isStory(e) &&
+          !Story.isExpired(e))
+      .toList();
 
   /// Akış görünümü: notlar + yeniden gönderimler, zaman damgasına göre karışık.
   /// Yeniden gönderilen not, şeritli kopyada göründüğü için bir kez daha
@@ -539,6 +553,20 @@ class AppSession extends ChangeNotifier {
       content: text,
       keys: k,
       tags: tags,
+    );
+    return publish(event);
+  }
+
+  /// 24 saatlik hikâye: `kind:1` + `t=story` + NIP-40 `expiration`.
+  Future<bool> publishStory(String caption,
+      {List<List<String>> tags = const []}) async {
+    final k = _k;
+    if (k == null) return false;
+    final event = NostrEvent.create(
+      kind: EventKind.note,
+      content: caption.trim(),
+      keys: k,
+      tags: [...Story.tagsFor(), ...tags],
     );
     return publish(event);
   }

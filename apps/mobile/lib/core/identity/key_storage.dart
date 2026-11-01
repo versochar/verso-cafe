@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../nostr/keys.dart';
@@ -67,5 +69,56 @@ class KeyStorage {
 
   Future<void> saveNotifReadAt(int unixSeconds) async {
     await _storage.write(key: _notifReadKey, value: '$unixSeconds');
+  }
+
+  // ------------------------------------------------------------ hikâyeler
+
+  static const _storySeenKey = 'story_seen.v1';
+  static const _storySeenTtl = Duration(days: 7);
+
+  /// Görülen hikâye id'leri. Eski kayıtlar (7 günden fazla) atılır.
+  Future<Set<String>> loadSeenStories() async {
+    final map = await _readStorySeenMap();
+    return map.keys.toSet();
+  }
+
+  /// Hikâyeyi görüldü olarak işaretler; hata dışarı sızmaz.
+  Future<void> markStorySeen(Iterable<String> ids) async {
+    final map = await _readStorySeenMap();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final id in ids) {
+      if (id.isNotEmpty) map[id] = now;
+    }
+    await _writeStorySeenMap(map);
+  }
+
+  Future<Map<String, int>> _readStorySeenMap() async {
+    try {
+      final raw = await _storage.read(key: _storySeenKey);
+      if (raw == null || raw.isEmpty) return {};
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return {};
+      final cutoff = DateTime.now()
+          .subtract(_storySeenTtl)
+          .millisecondsSinceEpoch;
+      final out = <String, int>{};
+      decoded.forEach((key, value) {
+        final ms = value is num ? value.toInt() : 0;
+        if (key.toString().isNotEmpty && ms >= cutoff) {
+          out[key.toString()] = ms;
+        }
+      });
+      return out;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _writeStorySeenMap(Map<String, int> map) async {
+    try {
+      await _storage.write(key: _storySeenKey, value: jsonEncode(map));
+    } catch (_) {
+      // Keystore yazılamazsa görüldü durumu bu oturumda kalır.
+    }
   }
 }

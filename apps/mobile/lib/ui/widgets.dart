@@ -170,6 +170,7 @@ class StoryItem extends StatelessWidget {
     this.active = true,
     this.isMe = false,
     this.onTap,
+    this.onAdd,
   });
 
   final String seed;
@@ -178,6 +179,9 @@ class StoryItem extends StatelessWidget {
   final bool active;
   final bool isMe;
   final VoidCallback? onTap;
+
+  /// "Sen" halkasındaki + rozetine dokununca çalışır (hikâye ekle).
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -197,14 +201,14 @@ class StoryItem extends StatelessWidget {
               padding: const EdgeInsets.all(2.5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: active && !isMe
+                gradient: active
                     ? const LinearGradient(
                         begin: Alignment.bottomLeft,
                         end: Alignment.topRight,
                         colors: [Color(0xFFFF6B35), Color(0xFFE0577F)],
                       )
                     : null,
-                color: active && !isMe ? null : AppColors.line,
+                color: active ? null : AppColors.line,
               ),
               child: Container(
                 padding: const EdgeInsets.all(2),
@@ -221,17 +225,21 @@ class StoryItem extends StatelessWidget {
                           Positioned(
                             right: -1,
                             bottom: -1,
-                            child: Container(
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                color: AppColors.accent,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: AppColors.background, width: 2),
+                            child: GestureDetector(
+                              onTap: onAdd,
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: AppColors.accent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: AppColors.background, width: 2),
+                                ),
+                                child: const Icon(Icons.add,
+                                    size: 12, color: AppColors.accentInk),
                               ),
-                              child: const Icon(Icons.add,
-                                  size: 11, color: AppColors.accentInk),
                             ),
                           ),
                         ],

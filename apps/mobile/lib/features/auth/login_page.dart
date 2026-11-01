@@ -1,9 +1,9 @@
-/// Giriş / kayıt ekranı — kullanıcı adı + parola (Firebase Auth).
+/// Giriş / kayıt ekranı — kullanıcı adı + parola (kendi hesap sunucumuz).
 ///
 /// Başarılı girişte anahtar cihaz Keystore'una yazılır, oturum çağırıcıya
 /// devredilir. Kayıtta Nostr anahtarı üretilir ve parolayla (NIP-49) sarılıp
-/// Firestore'a yedeklenir. Mevcut yerel hesaplar "Yerel anahtarla devam" ile
-/// eskisi gibi çalışmaya devam eder.
+/// ev sunucusundaki hesap servisine yedeklenir. Mevcut yerel hesaplar
+/// "Yerel anahtarla devam" ile eskisi gibi çalışmaya devam eder.
 library;
 
 import 'package:flutter/material.dart';
@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Future<void> _continueLocal() async {
-    // Geliştirici/dost yolu: Firebase hesabı olmadan yerel anahtarla.
+    // Hesap açmadan kullanma yolu: yalnız yerel anahtar (cihazda kalır).
     final storage = KeyStorage();
     final keys = await storage.loadKeys() ?? KeyPair.generate();
     await storage.savePrivateKey(keys);

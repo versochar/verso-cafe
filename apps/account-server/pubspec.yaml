@@ -1,0 +1,10 @@
+name: sosyal_account_server
+description: "Verso Cafe kendi sunulan hesap servisi — kullanıcı adı/parola, roller, duyurular"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  crypto: ^3.0.6

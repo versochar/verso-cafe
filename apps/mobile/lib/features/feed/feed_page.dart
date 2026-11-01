@@ -6,10 +6,10 @@ import '../../core/session/app_session.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets.dart';
 import '../announcements/announcements_sheet.dart';
+import '../notifications/notifications_sheet.dart';
+import '../stories/story_row.dart';
 import 'compose_sheet.dart';
 import 'post_tile.dart';
-import 'user_sheet.dart';
-import '../notifications/notifications_sheet.dart';
 
 /// Akış: üstte hikâye sırası, altta relay'den gelen `kind:1` notları.
 class FeedPage extends StatefulWidget {
@@ -29,9 +29,7 @@ class _FeedPageState extends State<FeedPage> {
       child: ListenableBuilder(
         listenable: session,
         builder: (context, _) {
-          final authors = session.activeAuthors();
           final feed = session.feedItems;
-          final me = session.me;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,31 +52,7 @@ class _FeedPageState extends State<FeedPage> {
                   ],
                 ),
               ),
-              SizedBox(
-                height: 100,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  children: [
-                    StoryItem(
-                      seed: me.pubkey,
-                      label: 'Sen',
-                      imageUrl: me.picture,
-                      isMe: true,
-                      onTap: () => showComposer(context),
-                    ),
-                    for (final author in authors)
-                      if (author != session.keys?.publicKeyHex)
-                        StoryItem(
-                          seed: author,
-                          label: session.profiles[author]?.displayName ??
-                              '${author.substring(0, 6)}…',
-                          imageUrl: session.profiles[author]?.picture,
-                          onTap: () => showUserSheet(context, author),
-                        ),
-                  ],
-                ),
-              ),
+              const StoryRow(),
               const Divider(height: 1),
               const _AnnouncementBanner(),
               Expanded(
@@ -127,7 +101,7 @@ class _FeedPageState extends State<FeedPage> {
 }
 
 /// Akışın üstündeki duyuru şeridi: en son duyuruyu gösterir, dokununca
-/// listeyi açar. Firebase hesabı olmayan (yerel anahtar) oturumlarda ve
+/// listeyi açar. Hesabı olmayan (yerel anahtar) oturumlarda ve
 /// duyuru yoksa görünmez.
 class _AnnouncementBanner extends StatefulWidget {
   const _AnnouncementBanner();
@@ -137,8 +111,8 @@ class _AnnouncementBanner extends StatefulWidget {
 }
 
 class _AnnouncementBannerState extends State<_AnnouncementBanner> {
-  /// Tek kez üretilir; akış yeniden kurulursa Firestore dinleyicisi
-  /// çoğalır ve emülatör akışı kısıtlar (RESOURCE_EXHAUSTED).
+  /// Tek kez üretilir; akış her kurulduğunda yeni bir yoklama zamanlayıcısı
+  /// açılmasın diye stream örneği sabit tutulur.
   late final Stream<List<Announcement>> _stream =
       AccountService.instance.signedIn
           ? AnnouncementService.instance.watch(limit: 1)

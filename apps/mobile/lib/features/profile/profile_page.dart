@@ -523,6 +523,15 @@ class _SettingsSheet extends StatelessWidget {
                     subtitle: 'Rol: ${acc.role.labelTR}',
                   ),
                   RowItem(
+                    icon: Icons.password_outlined,
+                    title: 'Parola değiştir',
+                    subtitle: 'Anahtar yeni parolayla yeniden şifrelenir',
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const _PasswordDialog(),
+                    ),
+                  ),
+                  RowItem(
                     icon: Icons.logout,
                     title: 'Oturumu kapat',
                     subtitle: 'Anahtar sunucuda parolanla duruyor',
@@ -626,7 +635,7 @@ class _SettingsSheet extends StatelessWidget {
     );
   }
 
-  /// Firebase hesabıyla çıkış: anahtar cihazdan silinir (parolayla
+  /// Hesap oturumuyla çıkış: anahtar cihazdan silinir (parolayla
   /// sunucuda durduğu için kayıp değil) ve uygulama kapanır; açılışta
   /// yeniden giriş istenir.
   Future<void> _signOut(BuildContext context) async {
@@ -828,7 +837,7 @@ class _BackupDialogState extends State<_BackupDialog> {
     });
     try {
       final result = await Nip49.encrypt(
-          AppSession.instance.keys!.nsec, _password.text);
+          AppSession.instance.keys!.privateKeyHex, _password.text);
       if (!mounted) return;
       setState(() => _backup = result);
     } catch (e) {
@@ -846,7 +855,7 @@ class _BackupDialogState extends State<_BackupDialog> {
     });
     try {
       final result = await Nip49.decrypt(_backup!, _password.text);
-      final ok = result == AppSession.instance.keys?.nsec;
+      final ok = result == AppSession.instance.keys?.privateKeyHex;
       if (!mounted) return;
       setState(() {
         _error = ok ? null : 'Parola yedekle eşleşmiyor';
@@ -864,6 +873,124 @@ class _BackupDialogState extends State<_BackupDialog> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+/// Hesap parolasını değiştirir: eski parolayla anahtarı çözer, yeni
+/// parolayla yeniden şifreleyip sunucuya gönderir (diğer cihaz oturumları
+/// kapanır, bu cihaz devam eder).
+class _PasswordDialog extends StatefulWidget {
+  const _PasswordDialog();
+
+  @override
+  State<_PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<_PasswordDialog> {
+  final _old = TextEditingController();
+  final _fresh = TextEditingController();
+  final _repeat = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _old.dispose();
+    _fresh.dispose();
+    _repeat.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_busy) return;
+    if (_fresh.text != _repeat.text) {
+      setState(() => _error = 'Yeni parolalar eşleşmiyor.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AccountService.instance.changePassword(_old.text, _fresh.text);
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Parola güncellendi')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = accountErrorText(e);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Parola değiştir'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Anahtarın yeni parolayla yeniden şifrelenir. Diğer cihazlardaki '
+              'oturumlar kapanır; bu cihaz açık kalır.',
+            ),
+            const SizedBox(height: Insets.lg),
+            TextField(
+              controller: _old,
+              obscureText: true,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(labelText: 'Mevcut parola'),
+            ),
+            const SizedBox(height: Insets.sm),
+            TextField(
+              controller: _fresh,
+              obscureText: true,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Yeni parola',
+                helperText: 'En az 6 karakter',
+              ),
+            ),
+            const SizedBox(height: Insets.sm),
+            TextField(
+              controller: _repeat,
+              obscureText: true,
+              onSubmitted: (_) => _submit(),
+              decoration: const InputDecoration(labelText: 'Yeni parola (tekrar)'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: Insets.sm),
+              Text(_error!,
+                  style:
+                      const TextStyle(color: AppColors.offline, fontSize: 12)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          onPressed: _busy ? null : _submit,
+          child: _busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Değiştir'),
+        ),
+      ],
+    );
   }
 }
 

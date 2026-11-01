@@ -1,7 +1,7 @@
 /// Açılış kapısı: hesap oturumu/yerel anahtar varsa akışa, yoksa girişe.
 ///
-/// Sıra: Firebase oturumu tek başına yetmez — anahtar parolayla şifreli
-/// olduğundan cihazda anahtar bulunmalı (yoksa yeniden giriş istenir).
+/// Hesap jetonu tek başına yetmez — anahtar parolayla şifreli olduğundan
+/// cihazda anahtar bulunmalı (yoksa yeniden giriş istenir).
 library;
 
 import 'package:flutter/material.dart';
@@ -32,22 +32,22 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _decide() async {
-    var firebaseSignedIn = false;
+    var signedIn = false;
     try {
       await AccountService.instance.restore();
-      firebaseSignedIn = AccountService.instance.signedIn;
+      signedIn = AccountService.instance.signedIn;
     } catch (_) {
-      // Firebase yok/erişilemez (yer tutucu yapılandırma ya da çevrimdışı):
-      // yerel anahtar yeter, uygulama açılmaya devam eder.
+      // Sunucu kapalı/çevrimdışı: yerel anahtar yeter, uygulama açılmaya
+      // devam eder. Hesap özellikleri bağlantı gelince çalışır.
     }
     final keys = await KeyStorage().loadKeys();
     if (keys == null) {
-      if (firebaseSignedIn) {
+      if (signedIn) {
         // Oturum var ama anahtar cihazda yok: parola gerekir → temiz gir.
         try {
           await AccountService.instance.signOut();
         } catch (_) {
-          // Firebase'e ulaşılamıyorsa yerel durum zaten anahtarsız.
+          // Sunucuya ulaşılamıyorsa yerel durum zaten anahtarsız.
         }
       }
       if (mounted) setState(() => _phase = _Phase.signedOut);

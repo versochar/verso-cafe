@@ -2,8 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    // Firebase (hesap/rol/duyuru): google-services.json → kaynak derlemesi.
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }

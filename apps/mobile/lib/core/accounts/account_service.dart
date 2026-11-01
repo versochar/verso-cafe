@@ -1,16 +1,21 @@
-/// Kullanıcı hesapları — Firebase Auth + Firestore köprüsü.
+/// Kullanıcı hesapları — kendi hesap sunucumuzun HTTP istemcisi.
 ///
-/// Model: giriş kimliği Firebase (kullanıcı adı + parola), Nostr anahtarları
-/// NIP-49 ile parolayla şifrelenip `users/{uid}` belgesinde durur. Böylece
-/// kullanıcı başka bir telefonda aynı ad/parola ile girince anahtarlarına
-/// kavuşur; sunucuda düz anahtar ya da parola saklanmaz.
+/// Model: giriş kimliği kullanıcı adı + parola; hesap servisi ev
+/// bilgisayarında çalışır (Firebase/Google gerekmez). Kayıtta Nostr anahtar
+/// çifti üretilir, **NIP-49 ile parolayla şifrelenir** ve sunucuya yalnız
+/// `ncryptsec` paketi gönderilir. Sunucu parolayı PBKDF2 ile, anahtarı ise
+/// yalnız şifreli hâlde saklar.
 ///
-/// Roller: `host` (tek yetkili; devredebilir), `mod` (duyuru yazar),
-/// `user` (normal). Koleksiyon boşken açılan ilk hesap host olur.
+/// Roller: `host` (tek yetkili; devredilebilir), `mod` (duyuru yazar),
+/// `user` (normal). Tohum host `hosthesap` adıyla doğar; sonraki roller
+/// yalnız mevcut host tarafından atanır (ADR-015).
 library;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/app_config.dart';
 import '../nostr/keys.dart';
@@ -48,25 +53,32 @@ class Account {
   bool get isHost => role == AccountRole.host;
   bool get canAnnounce => role == AccountRole.host || role == AccountRole.mod;
 
-  static Account fromDoc(String uid, Map<String, dynamic> data) => Account(
-        uid: uid,
-        username: data['username']?.toString() ?? uid,
+  static Account fromJson(Map<String, dynamic> data) => Account(
+        uid: data['id']?.toString() ?? data['uid']?.toString() ?? '',
+        username: data['username']?.toString() ?? '',
         role: AccountRole.parse(data['role']),
         pubkey: data['pubkey']?.toString() ?? '',
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': uid,
+        'username': username,
+        'role': role.name,
+        'pubkey': pubkey,
+      };
 }
 
 class AccountException implements Exception {
-  const AccountException(this.message);
+  const AccountException(this.message, {this.statusCode});
+
   final String message;
+
+  /// Sunucunun HTTP durumu (401 = oturum düştü); ağ hatasında null.
+  final int? statusCode;
+
   @override
   String toString() => message;
 }
-
-/// Kullanıcı adı → Firebase e-postası. Görünürde kullanıcı adı yazılır;
-/// Firebase zorunlu e-posta alanı iç alt alanıyla üretilir.
-String emailForUsername(String username) =>
-    '${username.toLowerCase().trim()}@hesap.verso.app';
 
 final RegExp usernamePattern = RegExp(r'^[a-z0-9_.]{3,32}$');
 
@@ -74,46 +86,18 @@ class AccountService {
   AccountService._();
   static final AccountService instance = AccountService._();
 
-  // Firebase erişimi tembel: yapılandırılmamışsa (yer tutucu
-  // google-services.json) singleton oluşurken çökmek yerine çağrı anında
-  // hata verir; çağıranlar bunu yakalar ve yerel anahtarla devam eder.
-  FirebaseAuth get _auth => FirebaseAuth.instance;
-  FirebaseFirestore get _db => FirebaseFirestore.instance;
+  static const _tokenKey = 'account.token.v1';
+  static const _accountKey = 'account.me.v1';
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
+  String? _token;
+  String? _ncryptsec;
   Account? _account;
+
   Account? get account => _account;
-  User? get authUser {
-    try {
-      return _auth.currentUser;
-    } catch (_) {
-      return null;
-    }
-  }
+  bool get signedIn => _token != null;
 
-  bool get signedIn => authUser != null;
-
-  /// Ana isola açılışında bir kez; emülatör ayarlarını uygular.
-  static Future<void> configure() async {
-    if (AppConfig.firebaseEmulatorHost.isNotEmpty) {
-      await FirebaseAuth.instance
-          .useAuthEmulator(AppConfig.firebaseEmulatorHost, 9099);
-      FirebaseFirestore.instance
-          .useFirestoreEmulator(AppConfig.firebaseEmulatorHost, 8188);
-    }
-  }
-
-  /// Zaten açık oturumu yükler; yoksa `null`.
-  Future<Account?> restore() async {
-    final user = _auth.currentUser;
-    if (user == null) return null;
-    final snap = await _db.collection('users').doc(user.uid).get();
-    final data = snap.data();
-    if (data == null) return null;
-    return _account = Account.fromDoc(user.uid, data);
-  }
-
-  /// Yeni hesap: Firebase kaydı + Nostr anahtarı üretimi + NIP-49 yedeği.
-  /// Anahtar döner; çağırıcı Keystore'a yazıp oturumu başlatır.
+  /// Yeni hesap: anahtar üret + NIP-49 ile sar + sunucuya kaydet.
   Future<({Account account, KeyPair keys})> register(
       String username, String password) async {
     final name = username.toLowerCase().trim();
@@ -125,73 +109,99 @@ class AccountService {
       throw const AccountException('Parola en az 6 karakter olmalı.');
     }
 
-    UserCredential cred;
-    try {
-      cred = await _auth.createUserWithEmailAndPassword(
-          email: emailForUsername(name), password: password);
-    } on FirebaseAuthException catch (e) {
-      throw AccountException(_authError(e));
-    }
-    final uid = cred.user!.uid;
-
     final keys = KeyPair.generate();
     final ncryptsec = await Nip49.encrypt(keys.privateKeyHex, password);
 
-    // Tohum host kuralı (firestore.rules): host olarak doğabilen tek hesap
-    // hosthesap'ındır. Başkası boş koleksiyona rağmen "user" doğar.
-    final seedHost = name == 'hosthesap';
-    final account = Account(
-      uid: uid,
-      username: name,
-      role: seedHost ? AccountRole.host : AccountRole.user,
-      pubkey: keys.publicKeyHex,
-    );
-    await _db.collection('users').doc(uid).set({
+    final json = await _request('POST', '/v1/register', body: {
       'username': name,
-      'role': account.role.name,
+      'password': password,
       'pubkey': keys.publicKeyHex,
       'npub': keys.npub,
       'ncryptsec': ncryptsec,
-      'createdAt': FieldValue.serverTimestamp(),
     });
-    return (account: _account = account, keys: keys);
+    final account = Account.fromJson(_accountJson(json));
+    await _persist(account, json['token']?.toString(), ncryptsec: ncryptsec);
+    return (account: account, keys: keys);
   }
 
-  /// Giriş: parolayla anahtarı çözer. Hata mesajları kullanıcıya gösterilir.
+  /// Giriş: parolayla şifreli anahtarı çözer. Hata mesajları kullanıcıya
+  /// gösterilir.
   Future<({Account account, KeyPair keys})> signIn(
       String username, String password) async {
-    UserCredential cred;
-    try {
-      cred = await _auth.signInWithEmailAndPassword(
-          email: emailForUsername(username), password: password);
-    } on FirebaseAuthException catch (e) {
-      throw AccountException(_authError(e));
+    final name = username.toLowerCase().trim();
+    final json = await _request('POST', '/v1/login', body: {
+      'username': name,
+      'password': password,
+    });
+    final data = _accountJson(json);
+    final ncryptsec = data['ncryptsec']?.toString();
+    if (ncryptsec == null || ncryptsec.isEmpty) {
+      throw const AccountException(
+          'Sunucu anahtar paketini göndermedi — hesap bozuk olabilir.');
     }
-    final uid = cred.user!.uid;
-    final snap = await _db.collection('users').doc(uid).get();
-    final data = snap.data();
-    if (data == null) {
-      throw const AccountException('Bu hesaba ait kayıt bulunamadı.');
-    }
-    final account = Account.fromDoc(uid, data);
     final KeyPair keys;
     try {
-      final hex = await Nip49.decrypt(
-          data['ncryptsec'] as String, password);
+      final hex = await Nip49.decrypt(ncryptsec, password);
       keys = KeyPair.fromPrivateHex(hex);
     } catch (_) {
       throw const AccountException(
           'Anahtar çözülemedi — hesap başka bir parolayla mı şifrelendi?');
     }
-    return (account: _account = account, keys: keys);
+    final account = Account.fromJson(data);
+    await _persist(account, json['token']?.toString(), ncryptsec: ncryptsec);
+    return (account: account, keys: keys);
   }
 
   Future<void> signOut() async {
-    _account = null;
+    if (_token != null) {
+      try {
+        await _request('POST', '/v1/logout', timeout: const Duration(seconds: 5));
+      } catch (_) {
+        // Sunucu kapalı olsa da yerel oturum kapanır.
+      }
+    }
+    await _clear();
+  }
+
+  /// Açılıştaki oturumu yükler.
+  ///
+  /// Önce cihazdaki önbellek kullanılır; ardından `/v1/me` ile tazelenir.
+  /// Sunucu kapalıysa/çevrimdışıysa önbellek geçerli kalır — uygulama açılır.
+  /// Jeton geçersizse (401) oturum temizlenir.
+  Future<Account?> restore() async {
+    _token = await _read(_tokenKey);
+    _ncryptsec = await _read(_secretKey);
+    final raw = await _read(_accountKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        _account = Account.fromJson(
+            (jsonDecode(raw) as Map).cast<String, dynamic>());
+      } catch (_) {
+        // Bozuk önbellek: sunucudan tazelenecek.
+      }
+    }
+    if (_token == null) {
+      _account = null;
+      return null;
+    }
     try {
-      await _auth.signOut();
+      final json = await _request('GET', '/v1/me',
+          timeout: const Duration(seconds: 6));
+      final data = _accountJson(json);
+      final account = Account.fromJson(data);
+      _account = account;
+      final secret = data['ncryptsec']?.toString();
+      if (secret != null && secret.isNotEmpty) _ncryptsec = secret;
+      await _cacheAccount(account, _ncryptsec);
+      return account;
+    } on AccountException catch (e) {
+      if (e.statusCode == 401) {
+        await _clear();
+        return null;
+      }
+      return _account;
     } catch (_) {
-      // Firebase yok/erişilemez: yerel anahtar silinerek oturum yine kapanır.
+      return _account;
     }
   }
 
@@ -199,82 +209,212 @@ class AccountService {
 
   /// Host: tüm hesaplar (rol ekranı listesi).
   Future<List<Account>> listUsers() async {
-    final snap = await _db.collection('users').get();
-    final list = snap.docs
-        .map((d) => Account.fromDoc(d.id, d.data()))
+    final json = await _request('GET', '/v1/users');
+    final raw = json['users'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((m) => Account.fromJson(m.cast<String, dynamic>()))
         .toList()
       ..sort((a, b) => a.username.compareTo(b.username));
-    return list;
   }
 
-  /// Host: rol atar. Hostluk devri = hedefe host ver, kendine user/mod ver.
-  Future<void> setRole(String uid, AccountRole role) =>
-      _db.collection('users').doc(uid).update({'role': role.name});
+  /// Host: rol atar (`mod` / `user`). Hostluk devri ayrı uçtadır.
+  Future<void> setRole(String uid, AccountRole role) async {
+    await _request('PATCH', '/v1/users/$uid/role',
+        body: {'role': role.name});
+  }
 
-  /// Hostluğu devret: hedef host olur, sen verilen role düşersin.
-  Future<void> transferHost(String targetUid,
-      {AccountRole selfRole = AccountRole.user}) async {
-    final batch = _db.batch();
-    batch.update(_db.collection('users').doc(targetUid), {'role': 'host'});
-    if (_account != null) {
-      batch.update(_db.collection('users').doc(_account!.uid),
-          {'role': selfRole.name});
-    }
-    await batch.commit();
-    await restore();
+  /// Hostluğu devret: hedef host olur, sen normal üyeye düşersin.
+  Future<void> transferHost(String targetUid) async {
+    final json = await _request('POST', '/v1/host/transfer',
+        body: {'targetId': targetUid});
+    final data = _accountJson(json);
+    final account = Account.fromJson(data);
+    _account = account;
+    await _cacheAccount(account, _ncryptsec);
   }
 
   /// Parola değişimi: anahtarı yeni parolayla yeniden sar.
   Future<void> changePassword(String oldPassword, String newPassword) async {
-    final user = _auth.currentUser;
-    if (user == null || _account == null) {
+    if (_token == null || _account == null) {
       throw const AccountException('Oturum açık değil.');
     }
-    final snap = await _db.collection('users').doc(user.uid).get();
-    final data = snap.data() ?? const {};
+    if (newPassword.length < 6) {
+      throw const AccountException('Yeni parola en az 6 karakter olmalı.');
+    }
+    var secret = _ncryptsec;
+    if (secret == null || secret.isEmpty) {
+      final json = await _request('GET', '/v1/me');
+      secret = _accountJson(json)['ncryptsec']?.toString();
+    }
+    if (secret == null || secret.isEmpty) {
+      throw const AccountException('Anahtar paketi bulunamadı.');
+    }
     String hex;
     try {
-      hex = await Nip49.decrypt(data['ncryptsec'] as String, oldPassword);
+      hex = await Nip49.decrypt(secret, oldPassword);
     } catch (_) {
       throw const AccountException('Mevcut parola yanlış.');
     }
-    try {
-      await user.updatePassword(newPassword);
-    } on FirebaseAuthException catch (e) {
-      throw AccountException(_authError(e));
-    }
     final fresh = await Nip49.encrypt(hex, newPassword);
-    await _db.collection('users').doc(user.uid).update({'ncryptsec': fresh});
+    await _request('POST', '/v1/password', body: {
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+      'ncryptsec': fresh,
+    });
+    _ncryptsec = fresh;
+    await _cacheAccount(_account!, fresh);
   }
 
-  static String _authError(FirebaseAuthException e) => switch (e.code) {
-        'invalid-email' || 'user-not-found' || 'wrong-password' ||
-        'invalid-credential' =>
-          'Kullanıcı adı ya da parola hatalı.',
-        'email-already-in-use' => 'Bu kullanıcı adı zaten kayıtlı.',
-        'weak-password' => 'Parola çok zayıf (en az 6 karakter gerekir).',
-        'too-many-requests' => 'Çok deneme — biraz sonra tekrar dene.',
-        'network-request-failed' =>
-          'Firebase bağlantısı kurulamadı (internet/ağ).',
-        'operation-not-allowed' =>
-          'Firebase konsolunda E-posta/Parola girişi açık değil.',
-        _ => 'Firebase hatası: ${e.code}',
-      };
+  // --------------------------------------------------------------- duyurular
+
+  Future<List<Announcement>> fetchAnnouncements({int limit = 50}) async {
+    final json =
+        await _request('GET', '/v1/announcements?limit=${limit.clamp(1, 100)}');
+    final raw = json['announcements'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((m) => Announcement.fromJson(m.cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<void> postAnnouncement(
+      {required String title, required String body}) async {
+    await _request('POST', '/v1/announcements', body: {
+      'title': title,
+      'body': body,
+    });
+  }
+
+  Future<void> deleteAnnouncement(String id) async {
+    await _request('DELETE', '/v1/announcements/$id');
+  }
+
+  // ---------------------------------------------------------------- HTTP
+
+  static const _secretKey = 'account.ncryptsec.v1';
+
+  Future<Map<String, dynamic>> _request(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final base = AppConfig.accountUrl.replaceFirst(RegExp(r'/+$'), '');
+    final client = HttpClient()..connectionTimeout = timeout;
+    try {
+      final request = await client.openUrl(method, Uri.parse('$base$path'));
+      request.headers.contentType = ContentType.json;
+      if (_token != null) {
+        request.headers
+            .set(HttpHeaders.authorizationHeader, 'Bearer $_token');
+      }
+      if (body != null) {
+        final bytes = utf8.encode(jsonEncode(body));
+        request.headers.contentLength = bytes.length;
+        request.add(bytes);
+      }
+      final response = await request.close().timeout(timeout);
+      final text = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(timeout);
+      Map<String, dynamic>? json;
+      try {
+        final decoded = jsonDecode(text);
+        if (decoded is Map<String, dynamic>) json = decoded;
+      } catch (_) {
+        // Boş/JSON olmayan gövde: durum koduna göre karar verilir.
+      }
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return json ?? const {};
+      }
+      throw AccountException(
+        json?['message']?.toString() ??
+            'Sunucu hatası (${response.statusCode}).',
+        statusCode: response.statusCode,
+      );
+    } on AccountException {
+      rethrow;
+    } on SocketException {
+      throw const AccountException(
+          'Hesap sunucusuna ulaşılamadı — sunucu açık mı, internet var mı?');
+    } on TimeoutException {
+      throw const AccountException(
+          'Hesap sunucusu yanıt vermedi — bağlantını kontrol et.');
+    } on HttpException {
+      throw const AccountException('Hesap sunucusuyla bağlantı kurulamadı.');
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  static Map<String, dynamic> _accountJson(Map<String, dynamic> json) {
+    final raw = json['account'];
+    if (raw is Map) return raw.cast<String, dynamic>();
+    throw const AccountException('Sunucu hesap bilgisini göndermedi.');
+  }
+
+  Future<void> _persist(Account account, String? token,
+      {String? ncryptsec}) async {
+    if (token == null || token.isEmpty) {
+      throw const AccountException('Sunucu oturum jetonu göndermedi.');
+    }
+    _token = token;
+    _account = account;
+    if (ncryptsec != null) _ncryptsec = ncryptsec;
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+      if (_ncryptsec != null) {
+        await _storage.write(key: _secretKey, value: _ncryptsec);
+      }
+      await _cacheAccount(account, _ncryptsec);
+    } catch (_) {
+      // Keystore yazılamazsa oturum bu açılışta yine geçerli.
+    }
+  }
+
+  Future<void> _cacheAccount(Account account, String? secret) async {
+    try {
+      await _storage.write(
+          key: _accountKey, value: jsonEncode(account.toJson()));
+      if (secret != null) {
+        await _storage.write(key: _secretKey, value: secret);
+      }
+    } catch (_) {
+      // Önbellek yazılamazsa da oturum bellekte sürer.
+    }
+  }
+
+  Future<String?> _read(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _clear() async {
+    _token = null;
+    _ncryptsec = null;
+    _account = null;
+    try {
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _secretKey);
+      await _storage.delete(key: _accountKey);
+    } catch (_) {
+      // Keystore silinemezse bir sonraki açılışta restore() temizler.
+    }
+  }
 }
 
 /// Giriş/kayıt hatalarını kullanıcıya anlaşılır metne çevirir.
-///
-/// Firebase hiç yapılandırılmamışsa (yer tutucu `google-services.json`)
-/// fırlatılan istisna teknik metin taşır; kullanıcıya yol gösterilir.
 String accountErrorText(Object error) {
   if (error is AccountException) return error.message;
-  final text = error.toString();
-  if (text.contains('No Firebase App') || text.contains('FirebaseApp')) {
-    return 'Hesaplar şu an kullanılamıyor (sunucu ayarlanmamış). '
-        'Alttaki "Yerel anahtarla devam et" ile kullanabilirsin.';
-  }
-  if (error is FirebaseException) {
-    return 'Firebase hatası: ${error.code}';
+  if (error is SocketException || error is TimeoutException) {
+    return 'Hesap sunucusuna ulaşılamadı — sunucu açık mı, internet var mı?';
   }
   return 'Beklenmeyen hata: $error';
 }
@@ -298,24 +438,20 @@ class Announcement {
   final String authorUid;
   final int createdAtMs;
 
-  static Announcement fromDoc(
-      DocumentSnapshot<Map<String, dynamic>> d) {
-    final data = d.data() ?? const {};
+  static Announcement fromJson(Map<String, dynamic> data) {
     int ms;
     final raw = data['createdAt'];
-    if (raw is Timestamp) {
-      ms = raw.millisecondsSinceEpoch;
-    } else if (raw is String) {
+    if (raw is String) {
       ms = DateTime.tryParse(raw)?.millisecondsSinceEpoch ?? 0;
     } else {
       ms = (raw as num?)?.toInt() ?? 0;
     }
     return Announcement(
-      id: d.id,
+      id: data['id']?.toString() ?? '',
       title: data['title']?.toString() ?? '',
       body: data['body']?.toString() ?? '',
       authorName: data['authorName']?.toString() ?? '',
-      authorUid: data['authorUid']?.toString() ?? '',
+      authorUid: data['authorId']?.toString() ?? data['authorUid']?.toString() ?? '',
       createdAtMs: ms,
     );
   }
@@ -327,15 +463,39 @@ class AnnouncementService {
   AnnouncementService._();
   static final AnnouncementService instance = AnnouncementService._();
 
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  /// Canlıya yakın akış: ilk istek hemen, sonra 15 saniyede bir tazelenir.
+  ///
+  /// WebSocket dinleyicisi yerine basit yoklama kullanılır; arkadaş çemberi
+  /// için yeterli, ek bağımlılık gerektirmez. Hata durumunda boş liste
+  /// yayınlanır (şerit görünmez, uygulama çalışmaya devam eder).
+  Stream<List<Announcement>> watch({int limit = 50}) {
+    late StreamController<List<Announcement>> controller;
+    Timer? timer;
+    var closed = false;
 
-  /// Canlı akış — en yeni üstte.
-  Stream<List<Announcement>> watch({int limit = 50}) =>
-      _db.collection('announcements')
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .snapshots()
-          .map((s) => s.docs.map(Announcement.fromDoc).toList());
+    Future<void> tick() async {
+      if (closed) return;
+      try {
+        final items =
+            await AccountService.instance.fetchAnnouncements(limit: limit);
+        if (!closed) controller.add(items);
+      } catch (_) {
+        if (!closed) controller.add(const []);
+      }
+    }
+
+    controller = StreamController<List<Announcement>>(
+      onListen: () {
+        unawaited(tick());
+        timer = Timer.periodic(const Duration(seconds: 15), (_) => tick());
+      },
+      onCancel: () {
+        closed = true;
+        timer?.cancel();
+      },
+    );
+    return controller.stream;
+  }
 
   Future<void> post({required String title, required String body}) async {
     final me = AccountService.instance.account;
@@ -347,15 +507,9 @@ class AnnouncementService {
     if (t.isEmpty && b.isEmpty) {
       throw const AccountException('Boş duyuru gönderilmez.');
     }
-    await _db.collection('announcements').add({
-      'title': t.isEmpty ? 'Duyuru' : t,
-      'body': b,
-      'authorUid': me.uid,
-      'authorName': me.username,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await AccountService.instance.postAnnouncement(title: t, body: b);
   }
 
   Future<void> delete(String id) =>
-      _db.collection('announcements').doc(id).delete();
+      AccountService.instance.deleteAnnouncement(id);
 }

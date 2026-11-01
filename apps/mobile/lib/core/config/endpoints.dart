@@ -1,9 +1,9 @@
-/// Ağ adreslerinin (relay + medya) çalışma zamanı yapılandırması.
+/// Ağ adreslerinin (relay + medya + hesap) çalışma zamanı yapılandırması.
 ///
-/// Relay/medya adresleri normalde derleme sırasında APK'ya gömülür. Ev
-/// sunucusu Cloudflare tüneliyle yayınlandığında adres tünel yeniden
-/// başlayınca değişir; her seferinde yeni APK yayınlamak yerine uygulama
-/// açılışta `network.json`'u okur ve gömülü adresin üzerine yazar (ADR-014).
+/// Adresler normalde derleme sırasında APK'ya gömülür. Ev sunucusu Cloudflare
+/// tüneliyle yayınlandığında adres tünel yeniden başlayınca değişir; her
+/// seferinde yeni APK yayınlamak yerine uygulama açılışta `network.json`'u
+/// okur ve gömülü adresin üzerine yazar (ADR-014).
 ///
 /// Okunan değer cihazda saklanır: çevrimdışı açılışta son bilinen adres
 /// kullanılır, GitHub'a ulaşılamazsa uygulama yine açılır (gömülü adres).
@@ -27,15 +27,12 @@ class Endpoints {
   /// Hata dışarı sızmaz — ağ yoksa ya da dosya bozuksa gömülü adresler geçerli
   /// kalır. Zaman aşımı kısa tutulur ki çevrimdışı açılış beklemesin.
   ///
-  /// Geliştirme modunda (Firebase emülatörü açık) ya da `NETWORK_URL` boşsa
-  /// uzak yapılandırma okunmaz: yerel relay/medya adresleri korunur.
+  /// `NETWORK_URL` boşsa (ör. tamamen çevrimdışı geliştirme) ne önbellek ne
+  /// uzak yapılandırma uygulanır: gömülü yerel adresler korunur.
   static Future<void> load({
     Duration timeout = const Duration(seconds: 3),
   }) async {
-    if (AppConfig.networkUrl.isEmpty ||
-        AppConfig.firebaseEmulatorHost.isNotEmpty) {
-      return;
-    }
+    if (AppConfig.networkUrl.isEmpty) return;
     await _applyCached();
     final json = await _fetch(timeout);
     if (json == null) return;
@@ -60,18 +57,26 @@ class Endpoints {
       AppConfig.mediaUrl = parsed.media!;
       changed = true;
     }
+    if (parsed.account != null && parsed.account != AppConfig.accountUrl) {
+      AppConfig.accountUrl = parsed.account!;
+      changed = true;
+    }
     return changed;
   }
 
   /// `network.json` içeriğini doğrular. Geçersiz/eksik alan `null` olur.
   ///
-  /// Beklenen biçim: `{"relay": "wss://…", "media": "https://…"}`.
-  static ({String? relay, String? media}) parse(Map<String, dynamic> json) {
+  /// Beklenen biçim:
+  /// `{"relay": "wss://…", "media": "https://…", "account": "https://…"}`.
+  static ({String? relay, String? media, String? account}) parse(
+      Map<String, dynamic> json) {
     final relay = json['relay']?.toString().trim();
     final media = json['media']?.toString().trim();
+    final account = json['account']?.toString().trim();
     return (
       relay: relay != null && _validRelay(relay) ? relay : null,
       media: media != null && _validMedia(media) ? media : null,
+      account: account != null && _validMedia(account) ? account : null,
     );
   }
 

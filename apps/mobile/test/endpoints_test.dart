@@ -8,9 +8,11 @@ void main() {
       final p = Endpoints.parse({
         'relay': 'wss://rica-pulse-repairs-trademark.trycloudflare.com',
         'media': 'https://questionnaire-executed-actress-watches.trycloudflare.com',
+        'account': 'https://hesap-ornek.trycloudflare.com',
       });
       expect(p.relay, startsWith('wss://'));
       expect(p.media, startsWith('https://'));
+      expect(p.account, startsWith('https://'));
     });
 
     test('şifresiz şema yalnız yerel geliştirme adreslerinde geçer', () {
@@ -27,6 +29,7 @@ void main() {
     test('boş, eksik ve yanlış şemalı alanlar yok sayılır', () {
       expect(Endpoints.parse({}).relay, isNull);
       expect(Endpoints.parse({}).media, isNull);
+      expect(Endpoints.parse({}).account, isNull);
       expect(Endpoints.parse({'relay': ''}).relay, isNull);
       expect(Endpoints.parse({'relay': 'wss://'}).relay, isNull);
       expect(Endpoints.parse({'relay': 'ftp://ornek.com'}).relay, isNull);
@@ -37,9 +40,11 @@ void main() {
       final p = Endpoints.parse({
         'relay': 'wss://relay.ornek.com',
         'media': 'bozuk',
+        'account': 'http://ornek.com',
       });
       expect(p.relay, 'wss://relay.ornek.com');
       expect(p.media, isNull);
+      expect(p.account, isNull);
     });
   });
 
@@ -47,18 +52,22 @@ void main() {
     test('adresleri değiştirir, ikinci kez değişiklik bildirmez', () {
       final oldRelay = AppConfig.relayUrl;
       final oldMedia = AppConfig.mediaUrl;
+      final oldAccount = AppConfig.accountUrl;
       addTearDown(() {
         AppConfig.relayUrl = oldRelay;
         AppConfig.mediaUrl = oldMedia;
+        AppConfig.accountUrl = oldAccount;
       });
 
       const json = {
         'relay': 'wss://relay.ornek.com',
         'media': 'https://medya.ornek.com',
+        'account': 'https://hesap.ornek.com',
       };
       expect(Endpoints.apply(json), isTrue);
       expect(AppConfig.relayUrl, 'wss://relay.ornek.com');
       expect(AppConfig.mediaUrl, 'https://medya.ornek.com');
+      expect(AppConfig.accountUrl, 'https://hesap.ornek.com');
       expect(Endpoints.apply(json), isFalse);
     });
 

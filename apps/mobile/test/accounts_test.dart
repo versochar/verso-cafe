@@ -4,12 +4,7 @@ import 'package:sosyal/core/nostr/keys.dart';
 import 'package:sosyal/core/nostr/nip49.dart';
 
 void main() {
-  group('kullanıcı adı → e-posta köprüsü', () {
-    test('ad, hesap alanına e-postaya çevrilir', () {
-      expect(emailForUsername('hosthesap'), 'hosthesap@hesap.verso.app');
-      expect(emailForUsername('a_b.c9'), 'a_b.c9@hesap.verso.app');
-    });
-
+  group('kullanıcı adı deseni', () {
     test('geçerli adlar: küçük harf, rakam, alt çizgi, nokta (3-32)', () {
       for (final ok in ['abc', 'a1b', 'hosthesap', 'a_b', 'a.b', 'x' * 32]) {
         expect(usernamePattern.hasMatch(ok), isTrue, reason: ok);
@@ -47,14 +42,30 @@ void main() {
       expect(acc(AccountRole.host).isHost, isTrue);
     });
 
-    test('belgeden hesap okuma: eksik alanlar makul varsayılana döner', () {
-      final a = Account.fromDoc('uid1', {'username': 'ada', 'role': 'mod'});
+    test('sunucu JSON\'undan hesap okuma: eksik alanlar güvenli', () {
+      final a = Account.fromJson({
+        'id': 'uid1',
+        'username': 'ada',
+        'role': 'mod',
+        'pubkey': 'ff',
+      });
+      expect(a.uid, 'uid1');
       expect(a.username, 'ada');
       expect(a.role, AccountRole.mod);
-      final b = Account.fromDoc('uid2', {});
-      expect(b.username, 'uid2');
+      final b = Account.fromJson({});
+      expect(b.username, '');
       expect(b.role, AccountRole.user);
       expect(b.canAnnounce, isFalse);
+    });
+
+    test('hesap JSON gidiş-dönüşü alanları korur', () {
+      const a = Account(
+          uid: 'u1', username: 'ada', role: AccountRole.host, pubkey: 'ab');
+      final b = Account.fromJson(a.toJson());
+      expect(b.uid, a.uid);
+      expect(b.username, a.username);
+      expect(b.role, a.role);
+      expect(b.pubkey, a.pubkey);
     });
   });
 

@@ -1,6 +1,6 @@
 /// Duyuru alanı: liste, yazma ve yetki yönetimi (host).
 ///
-/// Duyuruları yalnız host ve modlar yazabilir (istemci + Firestore kuralları).
+/// Duyuruları yalnız host ve modlar yazabilir (istemci + hesap sunucusu).
 /// Host, yetkiler ekranından mod ekler/çıkarır ve hostluğu devreder —
 /// "kendi hesabımı açınca hostluğu ona veririm" akışı buradan yürür.
 library;

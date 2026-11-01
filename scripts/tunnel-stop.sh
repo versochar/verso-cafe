@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA="${ROOT}/.data/tunnel"
 
-for name in relay media; do
+for name in relay media account; do
   pidfile="${DATA}/${name}.pid"
   [[ -f "$pidfile" ]] || continue
   pid="$(cat "$pidfile")"

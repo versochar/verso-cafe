@@ -8,7 +8,7 @@
 #   ./scripts/publish-network.sh   # herkese duyur
 #
 # Adresler `.data/public-urls.env` dosyasından (tunnel-start.sh üretir) ya da
-# RELAY_URL / MEDIA_URL ortam değişkenlerinden alınır.
+# RELAY_URL / MEDIA_URL / ACCOUNT_URL ortam değişkenlerinden alınır.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,6 +22,7 @@ fi
 
 RELAY="${RELAY_URL:?RELAY_URL yok — önce ./scripts/tunnel-start.sh çalıştır.}"
 MEDIA="${MEDIA_URL:?MEDIA_URL yok — önce ./scripts/tunnel-start.sh çalıştır.}"
+ACCOUNT="${ACCOUNT_URL:?ACCOUNT_URL yok — önce ./scripts/tunnel-start.sh çalıştır.}"
 
 case "$RELAY" in wss://*) ;; *)
   echo "HATA: relay adresi wss:// olmalı (gelen: $RELAY)" >&2; exit 1;;
@@ -29,13 +30,17 @@ esac
 case "$MEDIA" in https://*) ;; *)
   echo "HATA: medya adresi https:// olmalı (gelen: $MEDIA)" >&2; exit 1;;
 esac
+case "$ACCOUNT" in https://*) ;; *)
+  echo "HATA: hesap adresi https:// olmalı (gelen: $ACCOUNT)" >&2; exit 1;;
+esac
 
-python3 - "$OUT" "$RELAY" "$MEDIA" <<'PY'
+python3 - "$OUT" "$RELAY" "$MEDIA" "$ACCOUNT" <<'PY'
 import json, sys, datetime
-out, relay, media = sys.argv[1:4]
+out, relay, media, account = sys.argv[1:5]
 data = {
     "relay": relay,
     "media": media,
+    "account": account,
     "updatedAt": datetime.date.today().isoformat(),
 }
 with open(out, "w", encoding="utf-8") as f:
@@ -46,6 +51,7 @@ PY
 echo "network.json güncellendi:"
 echo "  relay : $RELAY"
 echo "  medya : $MEDIA"
+echo "  hesap : $ACCOUNT"
 
 cd "$ROOT"
 if [[ -z "$(git status --porcelain -- network.json)" ]]; then
@@ -54,7 +60,7 @@ if [[ -z "$(git status --porcelain -- network.json)" ]]; then
 fi
 
 git add network.json
-git commit -q -m "Ağ adresleri: relay/medya tünelleri güncellendi
+git commit -q -m "Ağ adresleri: relay/medya/hesap tünelleri güncellendi
 
 $(date '+%Y-%m-%d %H:%M') itibarıyla çalışan tünellerin adresleri.
 Kurulu uygulamalar açılışta bu dosyayı okuyup yeni adrese geçer (ADR-014)."

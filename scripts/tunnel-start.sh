@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Relay ve medya sunucusunu genel internete açar (Cloudflare tüneli).
+# Relay, medya ve hesap sunucusunu genel internete açar (Cloudflare tüneli).
 #
 # sudo, router ayarı veya sabit IP gerekmez: tünel cihazdan dışarı bağlanır.
 # Ücretsiz "quick tunnel" adresleri rastgeledir ve tünel yeniden başladığında
 # DEĞİŞİR — kalıcı adres için bkz. docs/dev-setup.md → "Genel erişim".
 #
-# Çıktı: .data/public-urls.env  (RELAY_URL=… MEDIA_URL=…)
+# Çıktı: .data/public-urls.env  (RELAY_URL=… MEDIA_URL=… ACCOUNT_URL=…)
 # Baskıya hazır derleme:
 #   set -a; source .data/public-urls.env; set +a
 #   ./scripts/release-apk.sh
@@ -46,6 +46,7 @@ start_one() { # start_one <ad> <yerel-port>
 
 start_one relay 7777
 start_one media "${PORT:-8080}"
+start_one account "${ACCOUNT_PORT:-8090}"
 
 # Adresler logda belirir (quick tunnel birkaç saniye sürer).
 url_of() {
@@ -62,16 +63,19 @@ url_of() {
 
 relay="$(url_of relay)" || { echo "HATA: relay tünel adresi alınamadı (${DATA}/relay.log)"; exit 1; }
 media="$(url_of media)" || { echo "HATA: medya tünel adresi alınamadı (${DATA}/media.log)"; exit 1; }
+account="$(url_of account)" || { echo "HATA: hesap tünel adresi alınamadı (${DATA}/account.log)"; exit 1; }
 
 cat >"$OUT" <<EOF
 # scripts/tunnel-start.sh tarafından üretildi — elle düzenleme.
 # Uyarı: quick tunnel adresleri tünel yeniden başladığında değişir.
 RELAY_URL=wss://${relay#https://}
 MEDIA_URL=${media}
+ACCOUNT_URL=${account}
 EOF
 
 echo
 echo "Genel adresler (dışarıdan erişilebilir):"
 echo "  relay : wss://${relay#https://}"
 echo "  medya : ${media}"
+echo "  hesap : ${account}"
 echo "Yazıldı: $OUT"
