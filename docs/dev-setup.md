@@ -110,11 +110,12 @@ Sunucuyu dışarı açmanın sudo/router gerektirmeyen yolu Cloudflare tünelidi
 tünel cihazdan **dışarı** bağlanır, port açmak gerekmez.
 
 ```bash
-./scripts/relay-start.sh && ./scripts/media-server-start.sh
-./scripts/tunnel-start.sh          # iki tünel kurar, adresleri yazar
+./scripts/serve.sh                 # relay + medya + tünel, adres değiştiyse duyurur
 cat .data/public-urls.env          # RELAY_URL=wss://…  MEDIA_URL=https://…
-./scripts/tunnel-stop.sh
+./scripts/tunnel-stop.sh           # (durdurma: tunnel-stop + media-server-stop + relay-stop)
 ```
+
+Bilgisayar her açıldığında tek komut yeterlidir: `./scripts/serve.sh`.
 
 Adresleri doğrulamak için (genel internet üzerinden, telefondan bağımsız):
 
