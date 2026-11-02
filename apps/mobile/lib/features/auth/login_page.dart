@@ -27,33 +27,26 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+class _LoginPageState extends State<LoginPage> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   final _password2 = TextEditingController();
   bool _busy = false;
   String? _error;
   bool _acceptTerms = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs.addListener(() => setState(() {}));
-  }
+  bool _isRegister = false;
 
   @override
   void dispose() {
-    _tabs.dispose();
     _username.dispose();
     _password.dispose();
     _password2.dispose();
     super.dispose();
   }
 
-  Future<void> _submit(bool register) async {
+  Future<void> _submit() async {
     if (_busy) return;
-    if (register && !_acceptTerms) {
+    if (_isRegister && !_acceptTerms) {
       setState(() => _error = 'Gizlilik Sözleşmesi ve Kullanım Şartları\'nı kabul etmelisiniz.');
       return;
     }
@@ -64,7 +57,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     try {
       final name = _username.text.toLowerCase().trim();
       final pass = _password.text;
-      final result = register
+      final result = _isRegister
           ? await _register(name, pass)
           : await AccountService.instance.signIn(name, pass);
       await KeyStorage().savePrivateKey(result.keys);
@@ -91,7 +84,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Future<void> _continueLocal() async {
-    // Hesap açmadan kullanma yolu: yalnız yerel anahtar (cihazda kalır).
     final storage = KeyStorage();
     final keys = await storage.loadKeys() ?? KeyPair.generate();
     await storage.savePrivateKey(keys);
@@ -110,70 +102,94 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     return ColoredBox(
       color: AppColors.background,
       child: SafeArea(
-        minimum: EdgeInsets.zero,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(Icons.coffee_rounded, size: 56, color: AppColors.accent),
-                const SizedBox(height: 12),
-                Text(
-                  AppConfig.name,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -1,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Arkadaş çemberin — giriş yap ya da katıl',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
-                // TabBar'ın indicator'ının gri olmamasını sağla
-                TabBar(
-                  controller: _tabs,
-                  tabs: const [Tab(text: 'Giriş'), Tab(text: 'Kayıt')],
-                  labelColor: AppColors.accent,
-                  unselectedLabelColor: AppColors.textMuted,
-                  indicatorColor: Colors.transparent,
-                  dividerColor: Colors.transparent,
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _username,
-                  autocorrect: false,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Kullanıcı adı',
-                    hintText: 'ornek: hosthesap',
-                    prefixIcon: Icon(Icons.alternate_email),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(color: AppColors.line, width: 1),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.coffee_rounded, size: 56, color: AppColors.accent),
+              const SizedBox(height: 12),
+              Text(
+                AppConfig.name,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: AppColors.line, width: 1),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
-                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Arkadaş çemberin — giriş yap ya da katıl',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+              // Giriş / Kayıt geçişi: TabBar yerine ToggleButtons (çizgi yok)
+              ToggleButtons(
+                isSelected: [_isRegister == false, _isRegister == true],
+                onPressed: (i) => setState(() => _isRegister = i == 1),
+                borderColor: AppColors.line,
+                selectedBorderColor: AppColors.accent,
+                fillColor: AppColors.surface,
+                selectedColor: AppColors.accent,
+                color: AppColors.textMuted,
+                constraints: const BoxConstraints.tightFor(height: 40),
+                children: const [
+                  SizedBox(width: 80, child: Center(child: Text('Giriş'))),
+                  SizedBox(width: 80, child: Center(child: Text('Kayıt'))),
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _username,
+                autocorrect: false,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Kullanıcı adı',
+                  hintText: 'ornek: hosthesap',
+                  prefixIcon: Icon(Icons.alternate_email),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.line, width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.line, width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _password,
+                obscureText: true,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _submit(),
+                decoration: const InputDecoration(
+                  labelText: 'Parola',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.line, width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.line, width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
+                  ),
+                ),
+              ),
+              if (_isRegister) ...[
                 const SizedBox(height: 12),
                 TextField(
-                  controller: _password,
+                  controller: _password2,
                   obscureText: true,
                   textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _tabs.index == 0 ? _submit(false) : null,
+                  onSubmitted: (_) => _submit(),
                   decoration: const InputDecoration(
-                    labelText: 'Parola',
-                    prefixIcon: Icon(Icons.lock_outline),
+                    labelText: 'Parola (tekrar)',
+                    prefixIcon: Icon(Icons.lock_reset),
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: AppColors.line, width: 1),
                     ),
@@ -185,115 +201,93 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     ),
                   ),
                 ),
-                if (_tabs.index == 1) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _password2,
-                    obscureText: true,
-                    onSubmitted: (_) => _submit(true),
-                    decoration: const InputDecoration(
-                      labelText: 'Parola (tekrar)',
-                      prefixIcon: Icon(Icons.lock_reset),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.line, width: 1),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.line, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
-                      ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _acceptTerms,
+                      onChanged: (v) => setState(() => _acceptTerms = v ?? false),
+                      activeColor: AppColors.accent,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Checkbox(
-                        value: _acceptTerms,
-                        onChanged: (v) => setState(() => _acceptTerms = v ?? false),
-                        shape: const CircleBorder(),
-                        activeColor: AppColors.accent,
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: _openTerms,
-                          child: Text.rich(
-                            TextSpan(
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textMuted,
-                              ),
-                              children: [
-                                const TextSpan(text: 'Gizlilik Sözleşmesi ve '),
-                                TextSpan(
-                                  text: 'Kullanım Şartları',
-                                  style: const TextStyle(
-                                    color: AppColors.accent,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                                const TextSpan(text: 'nı kabul ediyorum.'),
-                              ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _openTerms,
+                        child: Text.rich(
+                          TextSpan(
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted,
                             ),
+                            children: [
+                              const TextSpan(text: 'Gizlilik Sözleşmesi ve '),
+                              TextSpan(
+                                text: 'Kullanım Şartları',
+                                style: const TextStyle(
+                                  color: AppColors.accent,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                              const TextSpan(text: 'nı kabul ediyorum.'),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(Radii.md),
-                      border: Border.all(color: AppColors.line, width: 1),
                     ),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: AppColors.offline),
-                    ),
+                  ],
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(Radii.md),
+                    border: Border.all(color: AppColors.line, width: 1),
                   ),
-                ],
-                const SizedBox(height: 20),
-                FilledButton(
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: AppColors.offline),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 52),
                     backgroundColor: AppColors.accent,
                     foregroundColor: AppColors.background,
                   ),
-                  onPressed: _busy
-                      ? null
-                      : () => _submit(_tabs.index == 1),
+                  onPressed: _busy ? null : _submit,
                   child: _busy
                       ? const SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2.5),
                         )
-                      : Text(_tabs.index == 1
-                          ? 'Hesap oluştur'
-                          : 'Giriş yap'),
+                      : Text(_isRegister ? 'Hesap oluştur' : 'Giriş yap'),
                 ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: _busy ? null : _continueLocal,
-                  child: Text(
-                    'Yerel anahtarla devam et',
-                    style: TextStyle(
-                        color: AppColors.textFaint, fontSize: 12.5),
-                  ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: _busy ? null : _continueLocal,
+                child: Text(
+                  'Yerel anahtarla devam et',
+                  style: TextStyle(
+                      color: AppColors.textFaint, fontSize: 12.5),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Kayıt olurken anahtarın senin parolanla şifrelenir; '
-                  'sunucuda düz anahtar ya da parola saklanmaz.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Kayıt olurken anahtarın senin parolanla şifrelenir; '
+                'sunucuda düz anahtar ya da parola saklanmaz.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ],
           ),
         ),
       ),
