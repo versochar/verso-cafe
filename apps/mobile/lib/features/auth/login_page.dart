@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/accounts/account_service.dart';
 import '../../core/config/app_config.dart';
@@ -33,6 +34,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final _password2 = TextEditingController();
   bool _busy = false;
   String? _error;
+  bool _acceptTerms = false;
 
   @override
   void initState() {
@@ -51,6 +53,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   Future<void> _submit(bool register) async {
     if (_busy) return;
+    if (register && !_acceptTerms) {
+      setState(() => _error = 'Gizlilik Sözleşmesi ve Kullanım Şartları\'nı kabul etmelisiniz.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -90,6 +96,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final keys = await storage.loadKeys() ?? KeyPair.generate();
     await storage.savePrivateKey(keys);
     await widget.onAuthenticated();
+  }
+
+  Future<void> _openTerms() async {
+    const url = 'https://github.com/versochar/verso-cafe/blob/main/docs/kurulum.md#gizlilik-ve-kullan%C4%B1m-%C5%9Fartlar%C4%B1';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -159,6 +172,41 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       labelText: 'Parola (tekrar)',
                       prefixIcon: Icon(Icons.lock_reset),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _acceptTerms,
+                        onChanged: (v) => setState(() => _acceptTerms = v ?? false),
+                        shape: const CircleBorder(),
+                        activeColor: AppColors.accent,
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _openTerms,
+                          child: Text.rich(
+                            TextSpan(
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                              children: [
+                                const TextSpan(text: 'Gizlilik Sözleşmesi ve '),
+                                TextSpan(
+                                  text: 'Kullanım Şartları',
+                                  style: const TextStyle(
+                                    color: AppColors.accent,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const TextSpan(text: 'nı kabul ediyorum.'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 if (_error != null) ...[

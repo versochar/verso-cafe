@@ -159,6 +159,9 @@ class AppSession extends ChangeNotifier {
   /// Kullanılabilir takip listeleri (diğer sayfalardan erişim için).
   Map<String, Set<String>> get contacts => _contacts;
 
+  /// Beğeni reaksiyonları (diğer sayfalardan erişim için).
+  Map<String, Set<String>> get reactions => _reactions;
+
   /// Son hata/uyarı mesajı (arayüzde gösterilir).
   String? lastNotice;
 

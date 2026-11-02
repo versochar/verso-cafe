@@ -2,7 +2,7 @@
 ///
 /// Bir yazarın hikâyeleri sırayla oynar (5 sn); dokunarak ilerlenir/geri
 /// gidilir, basılı tutunca duraklar. Her gösterilen hikâye cihazda "görüldü"
-/// olarak işaretlenir.
+/// olarak işaretlenir. Beğeni (kind:7) ve görüntüleyenler listesi desteklenir.
 library;
 
 import 'package:flutter/material.dart';
@@ -62,6 +62,10 @@ class _StoryViewerState extends State<StoryViewer>
   int _itemIndex = 0;
   Set<String> _seen = const {};
   bool _paused = false;
+  bool _liked = false;
+  int _likesCount = 0;
+  Set<String> _likers = const {};
+  Set<String> _viewers = const {};
 
   StoryGroup get _group => widget.groups[_groupIndex];
   int get _itemCount => _group.items.length;
@@ -86,7 +90,29 @@ class _StoryViewerState extends State<StoryViewer>
       _seen = seen;
       _itemIndex = index;
     });
+    _loadReactions();
     _startProgress();
+  }
+
+  Future<void> _loadReactions() async {
+    final session = AppSession.instance;
+    final item = _group.items[_itemIndex];
+    final reactions = session.reactions[item.id] ?? <String>{};
+    final likers = reactions.toSet();
+    // Viewers: those who have seen this story (from local seen + assumption)
+    // For now, we only track local views. In a full implementation, this would
+    // come from a separate NIP-10000 event or similar.
+    setState(() {
+      _likers = likers;
+      _likesCount = likers.length;
+      final myPk = session.keys?.publicKeyHex?.toLowerCase();
+      _liked = myPk != null && likers.contains(myPk);
+      // Local viewer tracking
+      _viewers = _seen.intersection(session.contacts.keys.toSet());
+      if (session.keys != null) {
+        _viewers.add(session.keys!.publicKeyHex.toLowerCase());
+      }
+    });
   }
 
   @override
@@ -107,11 +133,60 @@ class _StoryViewerState extends State<StoryViewer>
     if (_seen.contains(item.id)) return;
     _seen = {..._seen, item.id};
     KeyStorage().markStorySeen([item.id]);
+    // Add self to viewers
+    final session = AppSession.instance;
+    final myPk = session.keys?.publicKeyHex?.toLowerCase();
+    if (myPk != null) {
+      setState(() {
+        _viewers = {..._viewers, myPk};
+      });
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    final session = AppSession.instance;
+    final item = _group.items[_itemIndex];
+    final myPk = session.keys!.publicKeyHex.toLowerCase();
+    if (_liked) {
+      // Unlike - send reaction with '-'
+      final ok = await session.react(item);
+      if (ok && mounted) {
+        setState(() {
+          _liked = false;
+          _likesCount = (_likesCount - 1).clamp(0, 999);
+          _likers = {..._likers}..remove(myPk);
+        });
+      }
+    } else {
+      // Like - send reaction with '+'
+      final ok = await session.react(item);
+      if (ok && mounted) {
+        setState(() {
+          _liked = true;
+          _likesCount++;
+          _likers = {..._likers, myPk};
+        });
+      }
+    }
+  }
+
+  void _showViewersAndLikers() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      builder: (ctx) => _ViewersSheet(
+        viewers: _viewers,
+        likers: _likers,
+        session: AppSession.instance,
+      ),
+    );
   }
 
   void _next() {
     if (_itemIndex + 1 < _itemCount) {
       setState(() => _itemIndex++);
+      _loadReactions();
       _startProgress();
       return;
     }
@@ -120,6 +195,7 @@ class _StoryViewerState extends State<StoryViewer>
         _groupIndex++;
         _itemIndex = 0;
       });
+      _loadReactions();
       _startProgress();
       return;
     }
@@ -285,6 +361,41 @@ class _StoryViewerState extends State<StoryViewer>
                             ],
                           ),
                         ),
+                        // Like button + count
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: _toggleLike,
+                              icon: Icon(
+                                _liked ? Icons.favorite : Icons.favorite_border,
+                                color: _liked ? Colors.redAccent : Colors.white,
+                                size: 22,
+                              ),
+                              tooltip: _liked ? 'Beğeniyi kaldır' : 'Beğen',
+                            ),
+                            if (_likesCount > 0)
+                              Text(
+                                '$_likesCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            const SizedBox(width: 4),
+                            // Viewers/likers list
+                            IconButton(
+                              onPressed: _showViewersAndLikers,
+                              icon: const Icon(
+                                Icons.remove_red_eye_outlined,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              tooltip: 'Görüntüleyenler ve beğenenler',
+                            ),
+                          ],
+                        ),
                         IconButton(
                           onPressed: () => Navigator.of(context).maybePop(),
                           icon: const Icon(Icons.close, color: Colors.white),
@@ -376,6 +487,128 @@ class _Loader extends StatelessWidget {
         height: 26,
         child: CircularProgressIndicator(
             strokeWidth: 2.5, color: AppColors.accent),
+      ),
+    );
+  }
+}
+
+/// Hikâye görüntüleyenler ve beğenenler listesi.
+class _ViewersSheet extends StatelessWidget {
+  const _ViewersSheet({
+    required this.viewers,
+    required this.likers,
+    required this.session,
+  });
+
+  final Set<String> viewers;
+  final Set<String> likers;
+  final AppSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final allViewers = viewers.toList()
+      ..sort((a, b) => likers.contains(b) ? 1 : likers.contains(a) ? -1 : 0);
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.5,
+      maxChildSize: 0.85,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text(
+                    'Görüntüleyenler (${viewers.length})',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (likers.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.favorite,
+                              color: Colors.redAccent, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${likers.length}',
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: allViewers.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Henüz kimse görmemiş',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: scrollController,
+                      itemCount: allViewers.length,
+                      itemBuilder: (context, i) {
+                        final pk = allViewers[i];
+                        final profile = session.profiles[pk];
+                        final isLiker = likers.contains(pk);
+                        final isMe = pk == session.keys?.publicKeyHex;
+                        return ListTile(
+                          leading: Avatar(
+                            seed: pk,
+                            label: profile?.displayName,
+                            imageUrl: profile?.picture,
+                            size: 40,
+                          ),
+                          title: Text(
+                            isMe ? 'Sen' : (profile?.displayName ?? '${pk.substring(0, 8)}…'),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: isMe ? const Text('Sen', style: TextStyle(color: Colors.white54)) : null,
+                          trailing: isLiker
+                              ? const Icon(Icons.favorite, color: Colors.redAccent, size: 18)
+                              : null,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

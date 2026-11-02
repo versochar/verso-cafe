@@ -217,11 +217,14 @@ class _NavItem extends StatelessWidget {
             width: selected ? 2 : 1,
           ),
         ),
-        child: Avatar(
-          seed: avatarSeed!,
-          label: avatarLabel,
-          imageUrl: avatarUrl,
-          size: 20,
+        child: ClipOval(
+          child: Avatar(
+            seed: avatarSeed!,
+            label: avatarLabel,
+            imageUrl: avatarUrl,
+            size: 26,
+            ring: false,
+          ),
         ),
       );
     } else {

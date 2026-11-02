@@ -876,12 +876,17 @@ class _SettingsSheet extends StatelessWidget {
     return ListenableBuilder(
       listenable: session,
       builder: (context, _) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) => SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
             Center(
               child: Container(
                 width: 36,
@@ -1011,7 +1016,8 @@ class _SettingsSheet extends StatelessWidget {
           ],
         ),
       ),
-      ),
+    ),
+    ),
     );
   }
 

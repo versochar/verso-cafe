@@ -45,10 +45,13 @@ if [[ "${SKIP_TARGET_CHECK:-0}" != 1 ]]; then
 fi
 
 cd "${ROOT}/apps/mobile"
+# pubspec.yaml'dan versionName oku (ör. 1.0.0+5 → 1.0.0)
+VERSION_NAME="$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
 flutter build apk --release --split-per-abi \
   --dart-define=RELAY_URL="${RELAY}" \
   --dart-define=MEDIA_URL="${MEDIA}" \
-  --dart-define=ACCOUNT_URL="${ACCOUNT}"
+  --dart-define=ACCOUNT_URL="${ACCOUNT}" \
+  --dart-define=APP_VERSION="${VERSION_NAME}"
 
 OUT="${ROOT}/apps/mobile/build/app/outputs/flutter-apk"
 cp "${OUT}/app-arm64-v8a-release.apk"   "${ROOT}/verso-cafe-release-arm64.apk"
