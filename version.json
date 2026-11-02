@@ -1,14 +1,14 @@
 {
-  "version": "1.0.4",
-  "versionCode": 2009,
-  "notes": "\"DM",
+  "version": "1.0.5",
+  "versionCode": 2010,
+  "notes": "Overscroll glow kapatıldı, ana sayfa/DM'de grilikler giderildi",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.4/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.4/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.5/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.5/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "0fc76853899c099fa15ae609fdf7e5af0c0e617c044d203a00e9c3637feaf230",
-    "armeabi-v7a": "d24fe052edf30a487852813234c4b0038c037edf191a172184b0c08ec7a0dc74"
+    "arm64-v8a": "c3c100eb6aa80cb4d2866c80058a4df45599fecf26973ebf7b44defe9fb59b1a",
+    "armeabi-v7a": "79bc3565387509bcb06ea59d8aad06ed1be2c3332855d57ee37d66009afbeadd"
   }
 }

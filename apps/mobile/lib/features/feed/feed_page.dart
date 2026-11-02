@@ -74,20 +74,26 @@ class _FeedPageState extends State<FeedPage> {
                       )
                     : RefreshIndicator(
                         color: AppColors.accent,
-                        backgroundColor: AppColors.surface,
+                        backgroundColor: AppColors.background,
                         onRefresh: () async {
                           // Relay aboneliği canlı; kısa bir bekleme yeterli.
                           await Future<void>.delayed(
                               const Duration(milliseconds: 400));
                         },
-                        child: ListView.separated(
-                          padding: const EdgeInsets.only(bottom: 96),
-                          itemCount: feed.length,
-                          separatorBuilder: (_, _) => const Divider(
-                              height: 1, thickness: 1, color: AppColors.line),
-                          itemBuilder: (context, i) => PostTile(
-                            event: feed[i].note,
-                            repostedBy: feed[i].repostedBy,
+                        child: NotificationListener<OverscrollIndicatorNotification>(
+                          onNotification: (notification) {
+                            notification.disallowIndicator();
+                            return true;
+                          },
+                          child: ListView.separated(
+                            padding: const EdgeInsets.only(bottom: 96),
+                            itemCount: feed.length,
+                            separatorBuilder: (_, _) => const Divider(
+                                height: 1, thickness: 1, color: AppColors.line),
+                            itemBuilder: (context, i) => PostTile(
+                              event: feed[i].note,
+                              repostedBy: feed[i].repostedBy,
+                            ),
                           ),
                         ),
                       ),

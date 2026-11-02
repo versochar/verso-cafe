@@ -109,35 +109,41 @@ class _ChatPageState extends State<ChatPage> {
                         message:
                             'Gönderdiğin mesajlar yalnızca sen ve karşı taraf tarafından okunabilir.',
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                        itemCount: messages.length,
-                        itemBuilder: (context, i) {
-                          final message = messages[i];
-                          final isMe =
-                              message.pubkey == session.keys?.publicKeyHex;
-                          final showTime = i == 0 ||
-                              message.createdAt -
-                                      messages[i - 1].createdAt >
-                                  300;
-                          return Column(
-                            children: [
-                              if (showTime)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  child: Text(
-                                    clockTime(message.createdAt),
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                                ),
-                              _Bubble(
-                                text: _decrypt(message),
-                                mine: isMe,
-                                time: clockTime(message.createdAt),
-                              ),
-                            ],
-                          );
+                    : NotificationListener<OverscrollIndicatorNotification>(
+                        onNotification: (notification) {
+                          notification.disallowIndicator();
+                          return true;
                         },
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                          itemCount: messages.length,
+                          itemBuilder: (context, i) {
+                            final message = messages[i];
+                            final isMe =
+                                message.pubkey == session.keys?.publicKeyHex;
+                            final showTime = i == 0 ||
+                                message.createdAt -
+                                        messages[i - 1].createdAt >
+                                    300;
+                            return Column(
+                              children: [
+                                if (showTime)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Text(
+                                      clockTime(message.createdAt),
+                                      style: theme.textTheme.labelSmall,
+                                    ),
+                                  ),
+                                _Bubble(
+                                  text: _decrypt(message),
+                                  mine: isMe,
+                                  time: clockTime(message.createdAt),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
               ),
               _Composer(
