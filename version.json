@@ -1,14 +1,14 @@
 {
-  "version": "1.0.6",
-  "versionCode": 2011,
-  "notes": "messages sayfası divider indent 54 giderildi, grilikler düzeltildi",
+  "version": "1.0.7",
+  "versionCode": 2012,
+  "notes": "Login ekranı griliği giderildi, renk düzeltmeleri",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.6/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.6/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.7/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.7/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "a07ee4e0328c0f2177faba7dd27b891f6f44c6cfd1dd8606cf91684806896ca3",
-    "armeabi-v7a": "e9cc213660f42ba26360f47331f9036671230cc9dda40b9b10678ccb9d047c13"
+    "arm64-v8a": "14f7a34843e77df3019efe083c0f9e2d754d5bc501c1aba56c9b324be60be191",
+    "armeabi-v7a": "d51710450ea300c6149477ae58959f49c28fcbc97140c6dca68188580861f3ce"
   }
 }
