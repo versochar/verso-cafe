@@ -240,18 +240,8 @@ class _ChatPageState extends State<ChatPage> {
   String _decrypt(NostrEvent event) {
     final session = AppSession.instance;
     try {
-      final decrypted = decryptMessage(
+      return decryptMessage(
           event.content, session.keys?.privateKeyHex ?? '', widget.recipientPubkey);
-      // Parse JSON format: {"text": "...", "media": {...}} -> return just text
-      try {
-        final data = jsonDecode(decrypted);
-        if (data is Map && data['text'] is String) {
-          return data['text'] as String;
-        }
-      } catch (_) {
-        // Not JSON, return as-is
-      }
-      return decrypted;
     } catch (_) {
       return 'Şifreli mesaj';
     }

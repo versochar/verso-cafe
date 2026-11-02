@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 import '../../core/nostr/bech32.dart';
 import '../../core/nostr/event.dart';
@@ -149,8 +150,16 @@ class MessagesPage extends StatelessWidget {
 
   static String _preview(AppSession session, _Thread thread) {
     try {
-      return decryptMessage(thread.last.content,
+      final decrypted = decryptMessage(thread.last.content,
           session.keys?.privateKeyHex ?? '', thread.pubkey);
+      // JSON formatından text'i çıkar
+      try {
+        final data = jsonDecode(decrypted);
+        if (data is Map && data['text'] is String) {
+          return data['text'] as String;
+        }
+      } catch (_) {}
+      return decrypted;
     } catch (_) {
       return 'Şifreli mesaj';
     }

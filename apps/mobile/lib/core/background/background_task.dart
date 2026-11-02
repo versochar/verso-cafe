@@ -7,6 +7,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -183,7 +184,15 @@ class _SosyalTaskHandler extends TaskHandler {
     final priv = _myPriv;
     if (priv == null) return 'Şifreli mesaj';
     try {
-      return _snippet(decryptMessage(event.content, priv, event.pubkey));
+      final decrypted = decryptMessage(event.content, priv, event.pubkey);
+      String text = decrypted;
+      try {
+        final data = jsonDecode(decrypted);
+        if (data is Map && data['text'] is String) {
+          text = data['text'] as String;
+        }
+      } catch (_) {}
+      return _snippet(text);
     } catch (_) {
       return 'Şifreli mesaj';
     }
