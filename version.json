@@ -1,14 +1,14 @@
 {
-  "version": "1.0.5",
-  "versionCode": 2010,
-  "notes": "Overscroll glow kapatıldı, ana sayfa/DM'de grilikler giderildi",
+  "version": "1.0.6",
+  "versionCode": 2011,
+  "notes": "messages sayfası divider indent 54 giderildi, grilikler düzeltildi",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.5/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.5/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.6/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.6/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "c3c100eb6aa80cb4d2866c80058a4df45599fecf26973ebf7b44defe9fb59b1a",
-    "armeabi-v7a": "79bc3565387509bcb06ea59d8aad06ed1be2c3332855d57ee37d66009afbeadd"
+    "arm64-v8a": "a07ee4e0328c0f2177faba7dd27b891f6f44c6cfd1dd8606cf91684806896ca3",
+    "armeabi-v7a": "e9cc213660f42ba26360f47331f9036671230cc9dda40b9b10678ccb9d047c13"
   }
 }

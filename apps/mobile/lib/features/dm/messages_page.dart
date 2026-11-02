@@ -71,8 +71,7 @@ class MessagesPage extends StatelessWidget {
                         padding: const EdgeInsets.only(
                             left: 20, right: 20, bottom: 96, top: 4),
                         itemCount: threads.length,
-                        separatorBuilder: (_, _) =>
-                            const Divider(indent: 54),
+                        separatorBuilder: (_, _) => const Divider(),
                         itemBuilder: (context, i) {
                           final thread = threads[i];
                           final profile =
