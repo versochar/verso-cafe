@@ -15,6 +15,7 @@ import '../../core/media/media_uploader.dart';
 import '../../core/nostr/event.dart';
 import '../../core/nostr/nip49.dart';
 import '../../core/session/app_session.dart';
+import '../../core/settings/app_settings.dart';
 import '../../ui/format.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets.dart';
@@ -989,6 +990,33 @@ class _SettingsSheet extends StatelessWidget {
             ),
             const SizedBox(height: Insets.lg),
             RowsGroup(
+              label: 'Görünüm',
+              children: [
+                RowItem(
+                  icon: Icons.palette_outlined,
+                  title: 'Tema',
+                  subtitle: _themeSubtitle(AppSettings.instance.themeMode),
+                  trailing: _ThemeSelector(),
+                  onTap: () => _showThemeDialog(context),
+                ),
+                RowItem(
+                  icon: Icons.language_outlined,
+                  title: 'Dil',
+                  subtitle: _languageSubtitle(AppSettings.instance.language),
+                  trailing: _LanguageSelector(),
+                  onTap: () => _showLanguageDialog(context),
+                ),
+                RowItem(
+                  icon: Icons.text_fields_outlined,
+                  title: 'Font boyutu',
+                  subtitle: _fontSizeSubtitle(AppSettings.instance.fontSize),
+                  trailing: _FontSizeSelector(),
+                  onTap: () => _showFontSizeDialog(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: Insets.lg),
+            RowsGroup(
               label: 'Bağlantı',
               children: [
                 RowItem(
@@ -1055,6 +1083,109 @@ class _SettingsSheet extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (_) => const _BackupDialog(),
+    );
+  }
+
+  String _themeSubtitle(ThemeModeOption mode) {
+    switch (mode) {
+      case ThemeModeOption.system:
+        return 'Sistem ayarını takip et';
+      case ThemeModeOption.light:
+        return 'Açık';
+      case ThemeModeOption.dark:
+        return 'Koyu';
+    }
+  }
+
+  String _languageSubtitle(LanguageOption lang) {
+    switch (lang) {
+      case LanguageOption.tr:
+        return 'Türkçe';
+      case LanguageOption.en:
+        return 'English';
+    }
+  }
+
+  String _fontSizeSubtitle(FontSizeOption size) {
+    switch (size) {
+      case FontSizeOption.small:
+        return 'Küçük';
+      case FontSizeOption.medium:
+        return 'Orta';
+      case FontSizeOption.large:
+        return 'Büyük';
+    }
+  }
+
+  void _showThemeDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tema seç'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final mode in ThemeModeOption.values)
+              RadioListTile<ThemeModeOption>(
+                title: Text(_themeSubtitle(mode)),
+                value: mode,
+                groupValue: AppSettings.instance.themeMode,
+                onChanged: (v) async {
+                  if (v != null) await AppSettings.instance.setThemeMode(v);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dil seç'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final lang in LanguageOption.values)
+              RadioListTile<LanguageOption>(
+                title: Text(_languageSubtitle(lang)),
+                value: lang,
+                groupValue: AppSettings.instance.language,
+                onChanged: (v) async {
+                  if (v != null) await AppSettings.instance.setLanguage(v);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFontSizeDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Font boyutu'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final size in FontSizeOption.values)
+              RadioListTile<FontSizeOption>(
+                title: Text(_fontSizeSubtitle(size)),
+                value: size,
+                groupValue: AppSettings.instance.fontSize,
+                onChanged: (v) async {
+                  if (v != null) await AppSettings.instance.setFontSize(v);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1442,5 +1573,72 @@ class _BlockedSheet extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// Tema seçici widget (Ayarlar satırında kullanılır).
+class _ThemeSelector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final mode = AppSettings.instance.themeMode;
+    return Text(
+      _themeLabel(mode),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w500,
+          ),
+    );
+  }
+
+  String _themeLabel(ThemeModeOption mode) {
+    switch (mode) {
+      case ThemeModeOption.system:
+        return 'Sistem';
+      case ThemeModeOption.light:
+        return 'Açık';
+      case ThemeModeOption.dark:
+        return 'Koyu';
+    }
+  }
+}
+
+/// Dil seçici widget.
+class _LanguageSelector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final lang = AppSettings.instance.language;
+    return Text(
+      lang == LanguageOption.tr ? 'TR' : 'EN',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w500,
+          ),
+    );
+  }
+}
+
+/// Font boyutu seçici widget.
+class _FontSizeSelector extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final size = AppSettings.instance.fontSize;
+    return Text(
+      _sizeLabel(size),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w500,
+          ),
+    );
+  }
+
+  String _sizeLabel(FontSizeOption size) {
+    switch (size) {
+      case FontSizeOption.small:
+        return 'Küçük';
+      case FontSizeOption.medium:
+        return 'Orta';
+      case FontSizeOption.large:
+        return 'Büyük';
+    }
   }
 }

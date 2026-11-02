@@ -9,10 +9,11 @@ import '../explore/explore_page.dart';
 import '../feed/compose_sheet.dart';
 import '../feed/feed_page.dart';
 import '../profile/profile_page.dart';
+import '../search/search_page.dart';
 
 /// Alt gezinme çubuğu ve sekmeler.
 ///
-/// Instagram benzeri beş yuva: Akış · Keşfet · (+) · Mesajlar · Profil.
+/// Instagram benzeri altı yuva: Akış · Keşfet · Ara · (+) · Mesajlar · Profil.
 /// Ortadaki `+` sekme değiştirmez, besteciyi açar. İçerik `IndexedStack`
 /// içinde tutulur; sekme değişiminde kaydırma konumu korunur.
 class HomeShell extends StatefulWidget {
@@ -59,10 +60,11 @@ class _HomeShellState extends State<HomeShell> {
           body: IndexedStack(
             index: _index,
             children: const [
-              FeedPage(),
-              ExplorePage(),
-              MessagesPage(),
-              ProfilePage(),
+              FeedPage(),      // 0
+              ExplorePage(),   // 1
+              SearchPage(),    // 2
+              MessagesPage(),  // 3
+              ProfilePage(),   // 4
             ],
           ),
           bottomNavigationBar: _BottomBar(
@@ -94,7 +96,7 @@ class _BootScreen extends StatelessWidget {
   }
 }
 
-/// Yuva düzeni: 0 akış, 1 keşfet, 2 oluştur, 3 mesajlar, 4 profil.
+/// Yuva düzeni: 0 akış, 1 keşfet, 2 ara, 3 oluştur, 4 mesajlar, 5 profil.
 class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.index,
@@ -140,6 +142,15 @@ class _BottomBar extends StatelessWidget {
               ),
               Expanded(
                 child: _NavItem(
+                  icon: Icons.search_outlined,
+                  activeIcon: Icons.search_rounded,
+                  label: 'Ara',
+                  selected: index == 2,
+                  onTap: () => onSelect(2),
+                ),
+              ),
+              Expanded(
+                child: _NavItem(
                   icon: Icons.add_circle_outline,
                   activeIcon: Icons.add_circle,
                   label: 'Paylaş',
@@ -153,8 +164,8 @@ class _BottomBar extends StatelessWidget {
                   icon: Icons.mode_comment_outlined,
                   activeIcon: Icons.mode_comment,
                   label: 'Mesajlar',
-                  selected: index == 2,
-                  onTap: () => onSelect(2),
+                  selected: index == 3,
+                  onTap: () => onSelect(3),
                 ),
               ),
               Expanded(
@@ -162,11 +173,11 @@ class _BottomBar extends StatelessWidget {
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Profil',
-                  selected: index == 3,
+                  selected: index == 4,
                   avatarSeed: me.pubkey,
                   avatarLabel: me.name,
                   avatarUrl: me.picture,
-                  onTap: () => onSelect(3),
+                  onTap: () => onSelect(4),
                 ),
               ),
             ],

@@ -1,14 +1,14 @@
 {
-  "version": "1.0.1",
-  "versionCode": 2006,
-  "notes": "Profil fotoğrafı/banner düzeltmeleri, ayarlar kaydırma, gizlilik sözleşmesi, hikâye beğeni/görüntüleyenler, version bildirimi düzeltildi",
+  "version": "1.0.2",
+  "versionCode": 2007,
+  "notes": "Arama (kişi/hashtag/metin), @mention, #hashtag, tema/dil/font ayarları, offline kuyruk altyapısı, sohbet sabitleme (max 5), hikâye beğeni/görüntüleyenler",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.1/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.1/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.2/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.2/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "459ba04dd3000f8c1371366857d4f2d3490023aaeb519d0da4077c3545223038",
-    "armeabi-v7a": "5c5021b9d5bb16faee5f4d6c465e91724927a9bd18284985724aa93718364245"
+    "arm64-v8a": "3b6a7413c66d594e484ebc6ee00dcf8f1821fd45793a24ea6fbce360f4d1d9a7",
+    "armeabi-v7a": "51bf4d5acc1cfb6524717c6eaa1389afbd6ff2ed9a8d7fc62a48044061eb6188"
   }
 }

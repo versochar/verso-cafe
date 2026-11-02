@@ -45,9 +45,19 @@ class KeyStorage {
     await _storage.write(key: _backupPendingKey, value: pending ? 'true' : 'false');
   }
 
+  /// Genel amaçlı anahtar-değer okuma.
+  Future<String?> read({required String key}) => _storage.read(key: key);
+
+  /// Genel amaçlı anahtar-değer yazma.
+  Future<void> write({required String key, required String value}) =>
+      _storage.write(key: key, value: value);
+
   static const _notifReadKey = 'notif_read_at';
   static const _bgWatchKey = 'bg_watch';
   static const _updateSkipKey = 'update_skipped';
+  static const _themeKey = 'theme_mode'; // system, light, dark
+  static const _languageKey = 'language'; // tr, en
+  static const _fontSizeKey = 'font_size'; // small, medium, large
 
   /// "Bu sürüm için bir daha hatırlatma" (güncelleme penceresi).
   Future<String?> loadUpdateSkipped() => _storage.read(key: _updateSkipKey);
@@ -69,6 +79,32 @@ class KeyStorage {
 
   Future<void> saveNotifReadAt(int unixSeconds) async {
     await _storage.write(key: _notifReadKey, value: '$unixSeconds');
+  }
+
+  // ------------------------------------------------------------ Tema/Dil
+
+  /// Tema modu: system, light, dark
+  Future<String> loadThemeMode() async =>
+      await _storage.read(key: _themeKey) ?? 'system';
+
+  Future<void> saveThemeMode(String mode) async {
+    await _storage.write(key: _themeKey, value: mode);
+  }
+
+  /// Dil: tr, en
+  Future<String> loadLanguage() async =>
+      await _storage.read(key: _languageKey) ?? 'tr';
+
+  Future<void> saveLanguage(String lang) async {
+    await _storage.write(key: _languageKey, value: lang);
+  }
+
+  /// Font boyutu: small, medium, large
+  Future<String> loadFontSize() async =>
+      await _storage.read(key: _fontSizeKey) ?? 'medium';
+
+  Future<void> saveFontSize(String size) async {
+    await _storage.write(key: _fontSizeKey, value: size);
   }
 
   // ------------------------------------------------------------ hikâyeler

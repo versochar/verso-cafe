@@ -557,6 +557,9 @@ class AppSession extends ChangeNotifier {
     return ok;
   }
 
+  /// Manuel event işleme (örn. arama sonucu gelen profil).
+  void ingestEvent(NostrEvent event) => _ingest(event);
+
   /// `kind:1` paylaşım.
   Future<bool> publishNote(String text, {List<List<String>> tags = const []}) async {
     final k = _k;
