@@ -1,7 +1,7 @@
 name: sosyal
 description: "Nostr tabanlı, davetliye kapalı sosyal ağ istemcisi"
 publish_to: 'none'
-version: 1.0.2+7
+version: 1.0.3+8
 
 environment:
   sdk: ^3.13.7

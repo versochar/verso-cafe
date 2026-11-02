@@ -84,7 +84,7 @@ class _FeedPageState extends State<FeedPage> {
                           padding: const EdgeInsets.only(bottom: 96),
                           itemCount: feed.length,
                           separatorBuilder: (_, _) => const Divider(
-                              height: 1, thickness: 6, color: AppColors.surface),
+                              height: 1, thickness: 1, color: AppColors.line),
                           itemBuilder: (context, i) => PostTile(
                             event: feed[i].note,
                             repostedBy: feed[i].repostedBy,
