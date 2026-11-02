@@ -1,14 +1,14 @@
 {
-  "version": "1.0.7",
-  "versionCode": 2012,
-  "notes": "Login ekranı griliği giderildi, renk düzeltmeleri",
+  "version": "1.0.8",
+  "versionCode": 2013,
+  "notes": "login ekranı gri çizgi düzeltilmeye çalışıldı (yr. deneme)",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.7/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.7/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.8/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.8/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "14f7a34843e77df3019efe083c0f9e2d754d5bc501c1aba56c9b324be60be191",
-    "armeabi-v7a": "d51710450ea300c6149477ae58959f49c28fcbc97140c6dca68188580861f3ce"
+    "arm64-v8a": "74c1662e77ff8409988d15eba560bad88015a2d41809fe416df64010a1cc5c4a",
+    "armeabi-v7a": "9461ee5c6af0a6b9ca578003b5501a1e88ef859c30e666c04e2cfd8211a75a27"
   }
 }
