@@ -107,13 +107,16 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
+    return ColoredBox(
+      color: AppColors.background,
+      child: SafeArea(
+        minimum: EdgeInsets.zero,
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Icon(Icons.coffee_rounded, size: 56, color: AppColors.accent),
@@ -133,12 +136,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
+                // TabBar'ın indicator'ının gri olmamasını sağla
                 TabBar(
                   controller: _tabs,
                   tabs: const [Tab(text: 'Giriş'), Tab(text: 'Kayıt')],
                   labelColor: AppColors.accent,
                   unselectedLabelColor: AppColors.textMuted,
-                  indicatorColor: AppColors.accent,
+                  indicatorColor: Colors.transparent,
+                  dividerColor: Colors.transparent,
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -149,6 +154,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     labelText: 'Kullanıcı adı',
                     hintText: 'ornek: hosthesap',
                     prefixIcon: Icon(Icons.alternate_email),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.line, width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.line, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -160,6 +174,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   decoration: const InputDecoration(
                     labelText: 'Parola',
                     prefixIcon: Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.line, width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.line, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
+                    ),
                   ),
                 ),
                 if (_tabs.index == 1) ...[
@@ -171,6 +194,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     decoration: const InputDecoration(
                       labelText: 'Parola (tekrar)',
                       prefixIcon: Icon(Icons.lock_reset),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppColors.line, width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppColors.line, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppColors.lineStrong, width: 1.4),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -214,9 +246,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.accentWash,
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(Radii.md),
-                      border: Border.all(color: AppColors.offline, width: 1),
+                      border: Border.all(color: AppColors.line, width: 1),
                     ),
                     child: Text(
                       _error!,
@@ -228,6 +260,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 FilledButton(
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(0, 52),
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.background,
                   ),
                   onPressed: _busy
                       ? null

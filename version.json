@@ -1,14 +1,14 @@
 {
-  "version": "1.0.8",
-  "versionCode": 2013,
-  "notes": "login ekranı gri çizgi düzeltilmeye çalışıldı (yr. deneme)",
+  "version": "1.0.9",
+  "versionCode": 2015,
+  "notes": "Login ekranı gri çizgi düzeltilti: ColoredBox arkaplaması, TabBar indicator transparent, TextField border'lar explicit",
   "publishedAt": "2026-11-02",
   "assets": {
-    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.8/verso-cafe-release-arm64.apk",
-    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.8/verso-cafe-release-armv7.apk"
+    "arm64-v8a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.9/verso-cafe-release-arm64.apk",
+    "armeabi-v7a": "https://github.com/versochar/verso-cafe/releases/download/v1.0.9/verso-cafe-release-armv7.apk"
   },
   "sha256": {
-    "arm64-v8a": "74c1662e77ff8409988d15eba560bad88015a2d41809fe416df64010a1cc5c4a",
-    "armeabi-v7a": "9461ee5c6af0a6b9ca578003b5501a1e88ef859c30e666c04e2cfd8211a75a27"
+    "arm64-v8a": "72ffa62eee7f5c76f33e9e2ce96c39213596dc383a444e34d66f521e8a0bbbaa",
+    "armeabi-v7a": "aaf94544a6aced8bbf6da992af787c4d04b30bfe0eef48cea36efaf49b216787"
   }
 }
