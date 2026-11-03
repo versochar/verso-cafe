@@ -1,7 +1,7 @@
 name: sosyal
 description: "Nostr tabanlı, davetliye kapalı sosyal ağ istemcisi"
 publish_to: 'none'
-version: 1.0.10+16
+version: 1.0.11+17
 
 environment:
   sdk: ^3.13.7
@@ -29,6 +29,9 @@ dependencies:
   url_launcher: ^6.2.5
   flutter_foreground_task: ^11.0.3
   flutter_local_notifications: ^22.3.3
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.3
 
 dev_dependencies:
   flutter_test:

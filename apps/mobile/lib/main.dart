@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/background/background_watch.dart';
 import 'core/config/app_config.dart';
 import 'core/config/endpoints.dart';
 import 'core/settings/app_settings.dart';
 import 'features/shell/auth_gate.dart';
-import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,8 +39,12 @@ class SosyalApp extends StatelessWidget {
           themeMode: settings.effectiveThemeMode,
           locale: settings.locale,
           localizationsDelegates: const [
-            // Material localizations
-            // TODO: Add app localizations when needed
+            // Türkçe/İngilizce Materyal yerelleştirmeleri. Bu delegeler
+            // olmadan supportedLocales'deki 'tr' için MaterialLocalizations
+            // null kalır ve TextField'lar release derlemede çöker (gri kutu).
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [
             Locale('tr'),
